@@ -1,0 +1,17 @@
+browser:
+  type: chrome
+  headless: false
+  binary_location: "/usr/bin/chromium"
+  driver_path: "/usr/bin/chromedriver"
+  timeout: 30
+  page_load_timeout: 30
+
+options:
+  disable_images: false
+  disable_javascript: false
+  user_agent: null
+  
+timeouts:
+  implicit: 10
+  page_load: 30
+  element_wait: 15
