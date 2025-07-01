@@ -1,16 +1,22 @@
 browser:
-  type: chrome
-  headless: false
-  binary_location: "/usr/bin/chromium"
-  driver_path: "/usr/bin/chromedriver"
-  timeout: 30
-  page_load_timeout: 30
+  _target_: selenium.webdriver.Chrome
+  service:
+    _target_: selenium.webdriver.chrome.service.Service
+    executable_path: "/usr/bin/chromedriver"
+  options:
+    _target_: webdriver.core.options.ChromeOptionsBuilder
+    binary_location: "/usr/bin/chromium"
+    headless: false
+    arguments:
+      - "--no-sandbox"
+      - "--disable-dev-shm-usage" 
+      - "--disable-gpu"
+      - "--disable-extensions"
+    preferences:
+      disable_images: false
+      disable_javascript: false
+    user_agent: null
 
-options:
-  disable_images: false
-  disable_javascript: false
-  user_agent: null
-  
 timeouts:
   implicit: 10
   page_load: 30

@@ -5,7 +5,8 @@ File description
 import logging
 from typing import Any, Dict, Optional
 
-from omegaconf import DictConfig
+from hydra.utils import instantiate
+from omegaconf import DictConfig, OmegaConf
 from selenium import webdriver
 from selenium.common.exceptions import (
     TimeoutException,
@@ -25,7 +26,7 @@ class MyWebDriver:
 
     def __init__(
         self,
-        config: Optional[DictConfig] = None,
+        config: DictConfig,
         session_id: Optional[str] = None,
         **kwargs,
     ):
@@ -37,60 +38,102 @@ class MyWebDriver:
             session_id: Unique identifier for this driver instance
             **kwargs: Direct parameters for backward compatibility
         """
-        self.session_id: str = session_id or "default"
-        self.config: Optional[DictConfig] = config
-
         if config:
-            logger.debug("Using passed config file.")
-            # Use configuration
-            self.headless: bool = config.webdriver.browser.headless
-            self.timeout: float = config.webdriver.browser.timeout
-            self.binary_location: str = config.webdriver.browser.binary_location
-            self.driver_path: str = config.webdriver.browser.driver_path
+            if self._is_valid_config(config):
+                # Use Hydra instantiation
+                self._init_from_hydra_config(config)
         else:
-            logger.debug("No cofig file passed, using direct parameters.")
-            # Use direct parameters (backward compatibility)
-            self.headless: bool = kwargs.get("headless", False)
-            self.timeout: float = kwargs.get("timeout", 30)
-            self.binary_location: str = kwargs.get(
-                "binary_location", "/usr/bin/chromium"
-            )
-            self.driver_path: str = kwargs.get("driver_path", "/usr/bin/chromedriver")
+            logger.error("Config validation failed")
+            raise ValueError("Config structure is invalid")
 
-        # Initialize browser
-        self.options: Options = self._configure_chrome_options()
-        self.service: Service = Service(executable_path=self.driver_path)
-        self.driver: webdriver.Chrome = self._initialize_driver()
+        #
+        self.session_id: str = session_id or "default"
+        self.config: DictConfig = config
 
         logger.info(f"WebDriver initialized for session: {self.session_id}")
 
-    def _configure_chrome_options(self) -> Options:
-        """Configure Chrome options based on settings."""
-        options = Options()
-        options.binary_location = self.binary_location
-
-        if self.headless:
-            options.add_argument("--headless")
-
-        # Basic stable options
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-extensions")
-
-        # Performance options
-        options.add_argument("--blink-settings=imagesEnabled=false")
-        options.add_argument("--disable-javascript")
-        return options
-
-    def _initialize_driver(self) -> webdriver.Chrome:
+    def _is_valid_config(self, config: DictConfig) -> bool:
         """
-        Initialize and return a Chrome WebDriver instance.
-
-        Returns:
-            Configured Chrome WebDriver
+        Validate config structure using OmegaConf's safe access methods.
         """
-        return webdriver.Chrome(service=self.service, options=self.options)
+        logger.debug("=== Config Validation ===")
+        logger.debug(f"Config type: {type(config)}")
+        logger.debug(f"Config keys: {list(config.keys()) if config else 'None'}")
+
+        try:
+            # Check required top-level sections exist
+            webdriver_section = OmegaConf.select(config, "webdriver")
+            proxy_section = OmegaConf.select(config, "proxy")
+
+            logger.debug(f"Webdriver section found: {webdriver_section is not None}")
+            logger.debug(f"Proxy section found: {proxy_section is not None}")
+
+            if webdriver_section is None:
+                logger.error("Missing 'webdriver' section in config")
+                return False
+
+            if proxy_section is None:
+                logger.error("Missing 'proxy' section in config")
+                return False
+
+            # Check webdriver.browser section
+            browser_section = OmegaConf.select(config, "webdriver.browser")
+            logger.debug(f"Browser section found: {browser_section is not None}")
+
+            if browser_section is None:
+                logger.error("Missing 'webdriver.browser' section in config")
+                return False
+
+            # If we have _target_, validate Hydra structure
+            target = OmegaConf.select(config, "webdriver.browser._target_")
+            if target:
+                logger.debug(f"Found _target_: {target}")
+
+                # Check required Hydra fields
+                service_target = OmegaConf.select(
+                    config, "webdriver.browser.service._target_"
+                )
+                options_target = OmegaConf.select(
+                    config, "webdriver.browser.options._target_"
+                )
+
+                logger.debug(f"Service _target_: {service_target}")
+                logger.debug(f"Options _target_: {options_target}")
+
+                if not service_target or not options_target:
+                    logger.error("Hydra config missing service or options _target_")
+                    return False
+
+            logger.debug("✅ Config validation passed")
+            return True
+
+        except Exception as e:
+            logger.error(f"Config validation error: {e}")
+            logger.debug(f"❌ Config validation failed: {e}")
+            return False
+        finally:
+            logger.debug("=== END Config Validation ===")
+
+    def _init_from_hydra_config(self, config: DictConfig):
+        """Initialize using Hydra instantiate."""
+        logger.debug("Initializing WebDriver using Hydra instantiate")
+
+        # Build the options using the options builder
+        options_builder = instantiate(config.webdriver.browser.options)
+        options = options_builder.build()
+
+        # Create the service
+        service = instantiate(config.webdriver.browser.service)
+
+        # Create the driver
+        self.driver = instantiate(
+            config.webdriver.browser, service=service, options=options
+        )
+
+        # Set timeouts
+        if hasattr(config, "timeouts"):
+            self.driver.implicitly_wait(config.timeouts.implicit)
+            self.driver.set_page_load_timeout(config.timeouts.page_load)
 
     def navigate(self, url: str) -> None:
         """Navigate to URL."""
@@ -104,12 +147,6 @@ class MyWebDriver:
             from omegaconf import OmegaConf
 
             print(OmegaConf.to_yaml(self.config))
-        else:
-            print("Direct parameters used:")
-            print(f"  headless: {self.headless}")
-            print(f"  timeout: {self.timeout}")
-            print(f"  binary_location: {self.binary_location}")
-            print(f"  driver_path: {self.driver_path}")
         print("================================")
 
     @property
@@ -128,14 +165,3 @@ class MyWebDriver:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-
-
-################################################################################
-############################## Testing area                 ####################
-################################################################################
-if __name__ == "__main__":
-    logging.basicConfig(
-        # Configure logging
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )

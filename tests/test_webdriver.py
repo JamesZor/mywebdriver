@@ -4,6 +4,7 @@ import logging
 from omegaconf import DictConfig
 
 from webdriver import MyWebDriver
+from webdriver.core.factory import create_webdriver_with_hydra
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -45,13 +46,16 @@ def test_basic_webdriver_with_head():
 
     # Test 1: Direct parameters (backward compatibility)
     print("Testing direct parameters...")
-    driver = MyWebDriver(headless=False, session_id="test_1")
-    driver.navigate("https://www.sscardapane.it/tutorials/hydra-tutorial/")
+    driver = create_webdriver_with_hydra(config_name="config")
+    test_url = "https://www.sscardapane.it/tutorials/hydra-tutorial/"
+    driver.navigate(test_url)
 
     print(f"Current URL: {driver.current_url}")
-    driver._print_config()
+
+    assert driver.current_url == test_url, f"urls do not match"
+
     driver.close()
 
 
 if __name__ == "__main__":
-    test_basic_webdriver()
+    test_basic_webdriver_with_head()

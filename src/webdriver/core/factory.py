@@ -2,15 +2,18 @@
 Factory functions for creating WebDriver instances with Hydra configs.
 """
 
+import logging
 import os
 from typing import Optional
 
 import pkg_resources
 from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 from .mywebdriver import MyWebDriver
+
+logger = logging.getLogger(__name__)
 
 
 def get_package_config_path():
@@ -34,7 +37,9 @@ def create_webdriver_with_hydra(
     Returns:
         MyWebDriver instance with composed configuration
     """
+    logger.debug(f"Getting hydra config: {config_name=}.")
     cfg = load_package_config(config_name, overrides)
+    logger.debug(f"print cfg:\n{OmegaConf.to_yaml(cfg)}\n.")
     return MyWebDriver(config=cfg, session_id=session_id)
 
 
