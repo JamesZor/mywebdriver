@@ -49,7 +49,7 @@ class MyWebDriver:
         #
         self.session_id: str = session_id or "default"
         self.config: DictConfig = config
-
+        logger.debug(f"Config file:\n{OmegaConf.to_yaml(config)}.")
         logger.info(f"WebDriver initialized for session: {self.session_id}")
 
     def _is_valid_config(self, config: DictConfig) -> bool:
