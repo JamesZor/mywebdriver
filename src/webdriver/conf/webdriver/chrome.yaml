@@ -12,6 +12,7 @@ browser:
       - "--disable-dev-shm-usage" 
       - "--disable-gpu"
       - "--disable-extensions"
+# see chrome options for arguments
     preferences:
       disable_images: false
       disable_javascript: false

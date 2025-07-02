@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
+from omegaconf import DictConfig
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,8 @@ class ChromeOptionsBuilder:
         user_agent: Optional[str] = None,
         **kwargs,
     ):
+
+        logger.debug("=" * 6 + " Init Chrome Option builder " + "=" * 6)
         logger.debug(f"Setting chrome options. {binary_location = }")
         self.options = ChromeOptions()
 
@@ -43,16 +46,22 @@ class ChromeOptionsBuilder:
         if user_agent:
             self.options.add_argument(f"--user-agent={user_agent}")
 
-        # proxy/ socks5
-
         # Set logging preferences
         self.options.set_capability(
             "goog:loggingPrefs", {"performance": "ALL", "browser": "ALL"}
         )
 
-    def proxy_sock5(self, socks_5_ip: str):
-        # TODO
-        self.options.add_argument(f"--proxy-server={socks_5_ip}")
+        logger.debug("-" * 6 + " End Chrome Option builder " + "-" * 6)
+
+    def proxy_sock5(self, config_socks5: DictConfig) -> None:
+        """
+        sock55_ip, is the proxy_url of the form socks5://10.124.0.155:1080
+        """
+        logger.debug(f"Setting socks5 proxy. {config_socks5 =}")
+        self.options.add_argument(f"--proxy-server={config_socks5.proxy_url}")
+        self.options.add_argument(
+            f"--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE {config_socks5.socks5}"
+        )
 
     def build(self) -> ChromeOptions:
         """Return the configured ChromeOptions."""

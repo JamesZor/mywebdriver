@@ -17,8 +17,9 @@ browser:
       disable_javascript: false
     user_agent: null
 
+  # for fast testing 
 timeouts:
-  implicit: 0
-  page_load: 0
-  element_wait: 0
+  implicit: 3
+  page_load: 10
+  element_wait: 10
 

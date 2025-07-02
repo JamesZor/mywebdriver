@@ -18,6 +18,8 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from webdriver.core.options import ChromeOptionsBuilder
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -113,20 +115,20 @@ class MyWebDriver:
             logger.debug(f"❌ Config validation failed: {e}")
             return False
         finally:
-            logger.debug("=== END Config Validation ===")
+            logger.debug("--- END Config Validation ---")
 
     def _init_from_hydra_config(self, config: DictConfig):
         """Initialize using Hydra instantiate."""
-        logger.debug("Initializing WebDriver using Hydra instantiate")
+        logger.debug("=" * 6 + " Init WebDriver using Hydra " + "=" * 6)
 
         # Build the options using the options builder
-        options_builder = instantiate(config.webdriver.browser.options)
+        options_builder: ChromeOptionsBuilder = instantiate(
+            config.webdriver.browser.options
+        )
 
-        options_builder.proxy_sock5(config.socks5.socks5)  # TODO
+        # Proxy socks5
+        options_builder.proxy_sock5(config.socks5)
         options = options_builder.build()
-        print("=-" * 20)
-
-        print(options)
 
         # Create the service
         service = instantiate(config.webdriver.browser.service)
@@ -140,6 +142,8 @@ class MyWebDriver:
         if hasattr(config, "timeouts"):
             self.driver.implicitly_wait(config.timeouts.implicit)
             self.driver.set_page_load_timeout(config.timeouts.page_load)
+
+        logger.debug("=" * 6 + " Init WebDriver using Hydra " + "=" * 6)
 
     def navigate(self, url: str) -> None:
         """Navigate to URL."""
@@ -207,6 +211,13 @@ class MyWebDriver:
         except Exception as e:
             logger.error(f"Error getting JSON content at {self.current_url}: {e}")
             return None
+
+    def go_get_json(
+        self, url: str
+    ) -> Optional[Union[Dict, List, str, int, float, bool]]:
+        """navigate and get_json_content"""
+        self.navigate(url)
+        return self.get_json_content()
 
     def close(self) -> None:
         """Close the driver."""
