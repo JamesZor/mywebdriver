@@ -1,0 +1,14 @@
+# For proxy manager init running 
+# Set up web driver for socks5 testing and handling
+defaults:
+  - webdriver: proxy_chrome
+  - proxy: init_setup
+  - _self_
+
+# Global package settings
+package:
+  name: "webdriver_proxy"
+  version: "0.1.0"
+
+
+

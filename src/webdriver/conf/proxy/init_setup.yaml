@@ -1,0 +1,7 @@
+enabled: true
+rotation:
+  enabled: false
+  interval: 10
+countries: null
+max_proxies: 500
+

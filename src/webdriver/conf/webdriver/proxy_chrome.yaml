@@ -1,0 +1,24 @@
+browser:
+  _target_: selenium.webdriver.Chrome
+  service:
+    _target_: selenium.webdriver.chrome.service.Service
+    executable_path: "/usr/bin/chromedriver"
+  options:
+    _target_: webdriver.core.options.ChromeOptionsBuilder
+    binary_location: "/usr/bin/chromium"
+    headless: false
+    arguments:
+      - "--no-sandbox"
+      - "--disable-dev-shm-usage" 
+      - "--disable-gpu"
+      - "--disable-extensions"
+    preferences:
+      disable_images: false
+      disable_javascript: false
+    user_agent: null
+
+timeouts:
+  implicit: 0
+  page_load: 0
+  element_wait: 0
+

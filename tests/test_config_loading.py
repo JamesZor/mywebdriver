@@ -4,6 +4,8 @@ Test Hydra config loading and composition.
 
 import logging
 
+from omegaconf import DictConfig, OmegaConf
+
 from webdriver.core.factory import create_webdriver_with_hydra, load_package_config
 
 # Configure logging
@@ -60,7 +62,15 @@ def test_config_loading():
     return cfg
 
 
+def test_load_config_from_str():
+    file_name: str = "proxy_init_run"
+    cfg: DictConfig = load_package_config(config_name=file_name)
+    print(f"File string: {file_name =}\n{OmegaConf.to_yaml(cfg)}.")
+
+
 if __name__ == "__main__":
     # Run all tests
     cfg = test_config_loading()
+    test_load_config_from_str()
+
     print("\n🚀 All tests completed successfully!")

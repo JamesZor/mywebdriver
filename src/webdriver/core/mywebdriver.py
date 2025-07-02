@@ -2,8 +2,9 @@
 File description
 """
 
+import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
@@ -153,6 +154,103 @@ class MyWebDriver:
     def current_url(self) -> str:
         """Get current URL."""
         return self.driver.current_url
+
+    def get_json_content_debug(
+        self,
+    ) -> Optional[Union[dict, list, str, int, float, bool]]:
+        """
+        Debug version to identify the JSON parsing issue.
+        """
+        JAVASCRIPT_COMMAND = "return document.body.innerText"
+
+        try:
+            # Debug: Check what execute_script returns
+            json_content = self.execute_script(JAVASCRIPT_COMMAND)
+            logger.debug(f"Raw content type: {type(json_content)}")
+            logger.debug(f"Raw content (first 200 chars): {str(json_content)[:200]}")
+
+            # Debug: Check json module state
+            logger.debug(f"json module type: {type(json)}")
+            logger.debug(f"json.loads type: {type(json.loads)}")
+
+            if not json_content:
+                logger.warning(f"No content found at {self.current_url}")
+                return None
+
+            # Ensure json_content is a string
+            if not isinstance(json_content, str):
+                logger.warning(
+                    f"Expected string, got {type(json_content)} at {self.current_url}"
+                )
+                return None
+
+            # Try parsing with explicit error handling
+            parsed_content = json.loads(json_content)
+            logger.debug(f"Parsed content type: {type(parsed_content)}")
+            return parsed_content
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON content at {self.current_url}: {e}")
+            logger.debug(f"Content that failed to parse: {json_content}")
+            return None
+        except TypeError as e:
+            logger.error(f"TypeError in get_json_content at {self.current_url}: {e}")
+            logger.debug(f"json_content type: {type(json_content)}")
+            logger.debug(f"json_content value: {json_content}")
+            return None
+        except Exception as e:
+            logger.error(
+                f"Unexpected error getting JSON content at {self.current_url}: {e}"
+            )
+            return None
+
+    def execute_script(self, script: str, *args) -> Any:
+        """
+        Execute JavaScript in the current window.
+
+        Args:
+            script: JavaScript to execute
+            *args: Arguments to pass to the script
+
+        Returns:
+            Result of the script execution (type depends on what JS returns)
+        """
+        try:
+            return self.driver.execute_script(script, *args)
+        except WebDriverException as e:
+            logger.error(f"Error executing script: {str(e)}")
+            raise
+
+    def get_json_content(self) -> Optional[Union[Dict, List, str, int, float, bool]]:
+        """
+        Get JSON content from document.body.innerText.
+
+        Returns:
+            Parsed JSON content or None if parsing fails
+        """
+        JAVASCRIPT_COMMAND = "return document.body.innerText"
+
+        try:
+            json_content = self.execute_script(JAVASCRIPT_COMMAND)
+
+            if not json_content:
+                logger.warning(f"No content found at {self.current_url}")
+                return None
+
+            if not isinstance(json_content, str):
+                logger.warning(
+                    f"Expected string, got {type(json_content)} at {self.current_url}"
+                )
+                return None
+
+            return json.loads(json_content)
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON content at {self.current_url}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting JSON content at {self.current_url}: {e}")
+            return None
 
     def close(self) -> None:
         """Close the driver."""
