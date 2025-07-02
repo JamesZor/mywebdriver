@@ -43,10 +43,16 @@ class ChromeOptionsBuilder:
         if user_agent:
             self.options.add_argument(f"--user-agent={user_agent}")
 
+        # proxy/ socks5
+
         # Set logging preferences
         self.options.set_capability(
             "goog:loggingPrefs", {"performance": "ALL", "browser": "ALL"}
         )
+
+    def proxy_sock5(self, socks_5_ip: str):
+        # TODO
+        self.options.add_argument(f"--proxy-server={socks_5_ip}")
 
     def build(self) -> ChromeOptions:
         """Return the configured ChromeOptions."""
