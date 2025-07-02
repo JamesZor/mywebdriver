@@ -35,7 +35,7 @@ import logging
 import os
 import random
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -277,13 +277,11 @@ class MullvadProxyManager:
 
                 page_data = driver.go_get_json(test_sofascore_url)
 
-                logger.debug("-" * 5 + f"\n{page_data = }\n" + "-" * 5)
+                logger.debug("-" * 25 + f"\n{page_data = }\n" + "-" * 25)
 
                 driver.close()
 
                 proxy["checked_at"] = datetime.datetime.utcnow().isoformat()
-
-                logger.debug(f"{type(page_data)}")
 
                 if page_data and isinstance(page_data, dict):
                     # Success case:
@@ -303,13 +301,14 @@ class MullvadProxyManager:
 
                 return False
 
-            # driver error
+            # driver nav error
             except Exception as nav_error:
                 logger.warning(
                     f"Navigation error with proxy {proxy.get('hostname')}: {str(nav_error)}"
                 )
                 proxy["valid"] = False
                 proxy["error"] = str(nav_error)
+                driver.close()
                 return False
 
         # driver
@@ -317,8 +316,49 @@ class MullvadProxyManager:
             logger.error(f"Error testing proxy {proxy.get('hostname')}: {str(e)}")
             proxy["valid"] = False
             proxy["error"] = str(e)
-
             return False
+
+    def check_all_proxies_threaded(
+        self, proxy_list: List[dict], max_workers: int = 5
+    ) -> None:
+        """
+        Check multiple proxies against the Sofascore API.
+
+        Tests a list of proxies, optionally using multiple threads for efficiency.
+
+        Args:
+            proxy_list: List of proxy dictionaries to check
+            max_workers: Int
+
+        Returns:
+            None: references  change / in place.
+        """
+        num_proxies = len(proxy_list)
+        num_good_proxies: int = 0
+        logger.info(f"Checking {num_proxies} proxies for Sofascore compatibility.")
+
+        with ThreadPoolExecutor(max_workers=max_workers) as excutor:
+
+            futures_to_proxy: dict[Future, dict] = {
+                excutor.submit(self.check_proxy, proxy): proxy for proxy in proxy_list
+            }
+
+            with tqdm(total=num_proxies, desc="Testing proxies", unit="proxy") as pbar:
+                for future in as_completed(futures_to_proxy):
+                    proxy = futures_to_proxy[future]
+                    try:
+                        num_good_proxies += future.result()
+                    except Exception as exc:
+                        logger.debug(
+                            f"Error: failed for {proxy.get('hostname')} : {str(exc)}."
+                        )
+                        proxy["valid"] = False
+                        proxy["error"] = str(exc)
+                    finally:
+                        pbar.update(1)
+        logger.info(
+            f"Found {num_good_proxies} working sock5 proxies, out of {num_proxies}."
+        )
 
     ### TODO
 
