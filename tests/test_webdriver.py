@@ -3,7 +3,7 @@ import logging
 
 from omegaconf import DictConfig
 
-from webdriver import MyWebDriver
+from webdriver import MullvadProxyManager, MyWebDriver
 from webdriver.core.factory import create_webdriver_with_hydra
 
 # Configure logging
@@ -56,6 +56,16 @@ def test_basic_webdriver_with_head():
     assert driver.current_url == test_url, "urls do not match"
 
     driver.close()
+
+
+def test_basic_webdriver_with_head_proxy_manager():
+    """Test basic WebDriver functionality."""
+
+    pm = MullvadProxyManager()
+
+    driver: MyWebDriver = MyWebDriver(config=pm._load_package_config())
+    test_url: str = "https://am.i.mullvad.net/json"
+    print(driver.go_get_json(test_url))
 
 
 def test_getting_json_content() -> None:

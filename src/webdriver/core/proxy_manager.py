@@ -162,6 +162,9 @@ class MullvadProxyManager:
             country, city, socks5_address, hostnames as str.
         """
 
+        # TODO unicode casting
+        # "city": "Malm\u00f6",
+
         try:
             # split for spaces greater than 2
             parts: list[str] = re.split(r" {2,}", line.strip())

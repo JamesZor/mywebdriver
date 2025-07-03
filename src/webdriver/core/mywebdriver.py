@@ -8,15 +8,9 @@ from typing import Any, Dict, List, Optional, Union
 
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
-from selenium import webdriver
 from selenium.common.exceptions import (
-    TimeoutException,
     WebDriverException,
 )
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 
 from webdriver.core.options import ChromeOptionsBuilder
 
@@ -71,17 +65,10 @@ class MyWebDriver:
         try:
             # Check required top-level sections exist
             webdriver_section = OmegaConf.select(config, "webdriver")
-            proxy_section = OmegaConf.select(config, "proxy")
-
             logger.debug(f"Webdriver section found: {webdriver_section is not None}")
-            logger.debug(f"Proxy section found: {proxy_section is not None}")
 
             if webdriver_section is None:
                 logger.error("Missing 'webdriver' section in config")
-                return False
-
-            if proxy_section is None:
-                logger.error("Missing 'proxy' section in config")
                 return False
 
             # Check webdriver.browser section
@@ -92,7 +79,7 @@ class MyWebDriver:
                 logger.error("Missing 'webdriver.browser' section in config")
                 return False
 
-            # If we have _target_, validate Hydra structure
+            # Check for Hydra _target_ structure
             target = OmegaConf.select(config, "webdriver.browser._target_")
             if target:
                 logger.debug(f"Found _target_: {target}")
@@ -112,27 +99,42 @@ class MyWebDriver:
                     logger.error("Hydra config missing service or options _target_")
                     return False
 
+            # Check optional sections (don't fail if missing)
+            socks5_section = OmegaConf.select(config, "socks5")
+            timeouts_section = OmegaConf.select(config, "timeouts")
+
+            logger.debug(f"SOCKS5 section found: {socks5_section is not None}")
+            logger.debug(f"Timeouts section found: {timeouts_section is not None}")
+
+            # Validate timeouts structure if present
+            if timeouts_section:
+                page_load_timeout = OmegaConf.select(config, "timeouts.page_load")
+                if page_load_timeout is None:
+                    logger.warning("timeouts.page_load not found, using default")
+
             logger.debug("✅ Config validation passed")
             return True
 
         except Exception as e:
-            logger.error(f"Config validation error: {e}")
-            logger.debug(f"❌ Config validation failed: {e}")
+            logger.error(f"Config validation failed: {e}")
+            logger.debug("Validation error details:", exc_info=True)
             return False
-        finally:
-            logger.debug("--- END Config Validation ---")
 
     def _init_from_hydra_config(self, config: DictConfig):
         """Initialize using Hydra instantiate."""
         logger.debug("=" * 6 + " Init WebDriver using Hydra " + "=" * 6)
-
         # Build the options using the options builder
         options_builder: ChromeOptionsBuilder = instantiate(
             config.webdriver.browser.options
         )
 
         # Proxy socks5
-        options_builder.proxy_sock5(config.socks5)
+        if hasattr(config, "socks5"):
+            options_builder.proxy_sock5(config.socks5)
+
+        # DEBUG: Print all Chrome options before creating driver
+        options_builder.debug_chrome_options()
+
         options = options_builder.build()
 
         # Create the service
@@ -146,9 +148,13 @@ class MyWebDriver:
         # Set timeouts
         if hasattr(config, "timeouts"):
             self.driver.implicitly_wait(config.timeouts.implicit)
-            self.driver.set_page_load_timeout(config.timeouts.page_load)
 
-        logger.debug("=" * 6 + " Init WebDriver using Hydra " + "=" * 6)
+            # Set page load timeout - important for bottleneck!
+            page_load_timeout = config.timeouts.page_load
+            self.driver.set_page_load_timeout(page_load_timeout)
+            logger.debug(f"Set page load timeout to {page_load_timeout} seconds")
+
+        logger.debug("=" * 6 + " WebDriver init complete " + "=" * 6)
 
     def navigate(self, url: str) -> None:
         """Navigate to URL."""

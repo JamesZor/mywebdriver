@@ -15,10 +15,8 @@ class ChromeOptionsBuilder:
     def __init__(
         self,
         binary_location: str = "/usr/bin/chromium",
-        headless: bool = False,
         arguments: Optional[List[str]] = None,
         preferences: Optional[Dict[str, Any]] = None,
-        user_agent: Optional[str] = None,
         **kwargs,
     ):
 
@@ -29,22 +27,11 @@ class ChromeOptionsBuilder:
         # Set binary location
         self.options.binary_location = binary_location
 
-        # Set headless mode
-        if headless:
-            logger.debug("setting headless.")
-            self.options.add_argument("--headless")
-        else:
-            logger.debug("setting head.")
-
-        # Add arguments
+        # Add ALL arguments from config
         if arguments:
             for arg in arguments:
                 logger.debug(f"Setting {arg =}")
                 self.options.add_argument(arg)
-
-        # Set user agent
-        if user_agent:
-            self.options.add_argument(f"--user-agent={user_agent}")
 
         # Set logging preferences
         self.options.set_capability(
@@ -67,3 +54,12 @@ class ChromeOptionsBuilder:
         """Return the configured ChromeOptions."""
         logger.debug("returning chrome options.")
         return self.options
+
+    def debug_chrome_options(self) -> None:
+        """Print all Chrome options for debugging."""
+        logger.debug("=" * 20 + " CHROME OPTIONS DEBUG " + "=" * 20)
+        logger.debug(f"Binary: {self.options.binary_location}")
+        logger.debug(f"Arguments ({len(self.options.arguments)}):")
+        for i, arg in enumerate(self.options.arguments, 1):
+            logger.debug(f"  {i}: {arg}")
+        logger.debug("=" * 50)

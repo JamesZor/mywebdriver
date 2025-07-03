@@ -4,7 +4,7 @@ from omegaconf import OmegaConf
 
 from webdriver import MullvadProxyManager, MyWebDriver
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 def test_proxy_fetch():
@@ -111,8 +111,8 @@ def test_processing():
 def test_main_process():
     print("=" * 10 + " Running main process testing " + "=" * 10)
     pm = MullvadProxyManager(max_workers=10)
-    #    fresh_proxies = pm.get_proxy_list(force_refresh=True)
-    fresh_proxies = pm.get_proxy_list()
+    fresh_proxies = pm.get_proxy_list(force_refresh=True)
+    #    fresh_proxies = pm.get_proxy_list()
 
     print(fresh_proxies[0:5])
     print("=" * 10 + " Ended of main process testing " + "=" * 10)
@@ -124,5 +124,5 @@ if __name__ == "__main__":
     #    test_basic_setup()
     #    test_check_proxy()
     #    test_check_proxy_list()
-    test_processing()
-    # test_main_process()
+    #    test_processing()
+    test_main_process()
