@@ -73,18 +73,35 @@ def test_check_proxy_list():
             print(p.get("country"), p.get("hostname"))
 
 
-def test_hydra_error():
-    proxy_manager = MullvadProxyManager()
-    proxy_list = proxy_manager.fetch_proxy_list()
-    print(proxy_list[0])
-    for p in proxy_list:
-        if p.get("hostname") in ["us-txc-wg-001", "us-sjc-wg-003"]:
-            print(p)
+def test_load_save():
+    print("=" * 10 + " Running simple save load test " + "=" * 10)
+    pm = MullvadProxyManager()
+    proxy_list = pm.fetch_proxy_list()
+
+    print("got proxy list, now saving.")
+    pm.save_proxy_list(proxy_list=proxy_list)
+
+    print("saved")
+    loaded_list = pm.load_latest_proxy_list()
+    print(loaded_list[0:5])
+
+    print("=" * 10 + " End of simple save load test " + "=" * 10)
+
+
+def test_main_process():
+    print("=" * 10 + " Running main process testing " + "=" * 10)
+    pm = MullvadProxyManager(max_workers=10)
+    #    fresh_proxies = pm.get_proxy_list(force_refresh=True)
+    fresh_proxies = pm.get_proxy_list()
+
+    print(fresh_proxies[0:5])
+    print("=" * 10 + " Ended of main process testing " + "=" * 10)
 
 
 if __name__ == "__main__":
-    test_proxy_fetch()
+    #    test_proxy_fetch()
+    # test_load_save()
     #    test_basic_setup()
     #    test_check_proxy()
     #    test_check_proxy_list()
-#     test_hydra_error()
+    test_main_process()

@@ -141,8 +141,17 @@ class MullvadProxyManager:
         98,
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, max_workers: int = 8) -> None:
         logger.debug("running")
+        self.max_workers = max_workers
+
+        self.project_root = Path(__file__).parent.parent.parent.parent
+        self.data_dir = self.project_root / "data" / "proxies"
+
+        if not self.check_wg_mullvad_connection():
+            logger.warning(
+                f"Wireguard not running/ connected to Mullvad. {self.check_wg_mullvad_connection()}."
+            )
 
     def _parse_proxy_line(self, line: str) -> Optional[Tuple[str, str, str, str]]:
         """
@@ -223,7 +232,7 @@ class MullvadProxyManager:
             logger.error(f"Error fetching proxy list: {str(e)}")
             return []
 
-    def _socks_override(self, socks5_dict: dict[str, str]) -> List[str]:
+    def _socks_override(self, socks5_dict: dict[str, Union[str, bool]]) -> List[str]:
         return [f"+socks5.{key}={value}" for key, value in socks5_dict.items()]
 
     def _load_package_config(
@@ -247,13 +256,6 @@ class MullvadProxyManager:
         finally:
             # Clean up
             GlobalHydra.instance().clear()
-
-    def _get_webdrive(self) -> MyWebDriver:
-        """
-        Load up a webdriver using the proxy configs.
-        returns:
-            MyWebDriver
-        """
 
     def check_wg_mullvad_connection(self) -> bool:
         """
@@ -386,6 +388,198 @@ class MullvadProxyManager:
             f"Found {num_good_proxies} working sock5 proxies, out of {num_proxies}."
         )
 
+    def save_proxy_list(
+        self, proxy_list: list[dict], custom_dir: Optional[str] = None
+    ) -> None:
+        """
+        Save a proxy list to disk as JSON.
+        Args:
+            proxy_list: List of proxy dictionaries to save
+            custom_dir: Optional custom directory (if None, uses default data/proxies)
+        Returns:
+            None
+        """
+        # Use custom dir if provided, otherwise use default
+        if custom_dir:
+            save_dir = Path(custom_dir)
+        else:
+            save_dir = self.data_dir
+
+        timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d")
+        file_path: Path = save_dir / f"{timestamp}.json"
+
+        try:
+            with open(file_path, "w") as f:
+                json.dump(proxy_list, f, indent=2)
+                logger.info(
+                    f"File saved: {file_path} - number of proxies: {len(proxy_list)}"
+                )
+        except Exception as e:
+            logger.error(f"Error saving proxy list to {file_path}: {str(e)}")
+
+    def load_latest_proxy_list(self) -> list[dict]:
+        """Load the most recent proxy list"""
+        try:
+            json_files = list(self.data_dir.glob("*.json"))
+            if not json_files:
+                logger.warning("No proxy files found")
+                return []
+
+            # Get the most recent file
+            latest_file = max(json_files, key=lambda x: x.stat().st_mtime)
+
+            with open(latest_file, "r") as f:
+                proxy_list = json.load(f)
+                logger.info(f"Loaded {len(proxy_list)} proxies from {latest_file}")
+                return proxy_list
+
+        except Exception as e:
+            logger.error(f"Error loading proxy list: {str(e)}")
+            return []
+
+    def _get_latest_proxy_file(self) -> Optional[Path]:
+        """
+        Internal method to get the latest proxy file.
+        Returns:
+            Path to the latest file or None if no files exist
+        """
+        try:
+            json_files = list(self.data_dir.glob("mullvad_proxies_*.json"))
+            if not json_files:
+                logger.debug("No proxy files found in data directory")
+                return None
+
+            # Get the most recent file by modification time
+            latest_file = max(json_files, key=lambda x: x.stat().st_mtime)
+            return latest_file
+
+        except Exception as e:
+            logger.error(f"Error finding latest proxy file: {str(e)}")
+            return None
+
+    def _get_file_age_hours(self, file_path: Path) -> float:
+        """
+        Internal method to get file age in hours.
+        Args:
+            file_path: Path to the file
+        Returns:
+            Age of file in hours
+        """
+        try:
+            file_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime)
+            current_time = datetime.datetime.now()
+            time_diff = current_time - file_time
+            return time_diff.total_seconds() / 3600  # Convert to hours
+        except Exception as e:
+            logger.error(f"Error calculating file age: {str(e)}")
+            return float("inf")  # Return very large number if error
+
+    def is_cache_fresh(
+        self, max_age_hours: float = 24.0
+    ) -> Tuple[bool, Optional[Path]]:
+        """
+        Check if cached proxy list is still fresh.
+        Args:
+            max_age_hours: Maximum age in hours before cache is considered stale
+        Returns:
+            (is_fresh: bool, file_path: Optional[Path])
+        """
+        latest_file = self._get_latest_proxy_file()
+
+        if not latest_file:
+            logger.info("No cached proxy file found")
+            return False, None
+
+        age_hours = self._get_file_age_hours(latest_file)
+        is_fresh = age_hours <= max_age_hours
+
+        logger.info(
+            f"Cache file: {latest_file.name}, Age: {age_hours:.1f}h, Fresh: {is_fresh}"
+        )
+        return is_fresh, latest_file
+
+    def load_proxy_list_from_file(self, file_path: Path) -> List[Dict]:
+        """Load proxy list from specific file"""
+        try:
+            with open(file_path, "r") as f:
+                proxy_list = json.load(f)
+                logger.info(f"Loaded {len(proxy_list)} proxies from {file_path.name}")
+                return proxy_list
+        except Exception as e:
+            logger.error(f"Error loading proxy list from {file_path}: {str(e)}")
+            return []
+
+    def fetch_and_process_proxies(self, skip_testing: bool = False) -> List[Dict]:
+        """
+        Fetch proxy list from URL and process/check them for Sofascore compatibility.
+        This is the "heavy lifting" method that actually fetches and tests.
+
+        Args:
+            skip_testing: If True, just fetch proxies without testing them
+
+        Returns:
+            List of proxy dictionaries (with 'valid' field if tested)
+        """
+
+        # Step 1: Fetch new proxy list from URL
+        logger.info("Fetching new proxy list from API")
+        proxy_list = self.fetch_proxy_list()
+
+        if not proxy_list:
+            logger.warning("No proxies found from API")
+            return []
+
+        logger.info(f"Fetched {len(proxy_list)} proxies")
+
+        # Step 2: Test proxies (unless skipped)
+        if not skip_testing:
+            logger.info("Testing proxies for Sofascore compatibility...")
+            self.check_all_proxies_threaded(
+                proxy_list=proxy_list, max_workers=self.max_workers
+            )
+
+            # Count valid proxies
+            valid_proxies = [p for p in proxy_list if p.get("valid", False)]
+            logger.info(
+                f"Found {len(valid_proxies)} valid proxies out of {len(proxy_list)}"
+            )
+
+        # Step 3: Save the processed proxy list
+        try:
+            self.save_proxy_list(valid_proxies)
+            logger.info("Saved processed proxy list to cache")
+        except Exception as e:
+            logger.error(f"Failed to save proxy list: {str(e)}")
+
+        return valid_proxies
+
+    def get_proxy_list(
+        self, force_refresh: bool = False, max_cache_age_hours: float = 24.0
+    ) -> List[Dict]:
+        """
+        Get proxy list - either from cache (if fresh) or fetch and process new data.
+        This is the main entry point for getting proxies.
+
+        Args:
+            force_refresh: If True, always fetch new data
+            max_cache_age_hours: Maximum age for cache validity
+        Returns:
+            List of proxy dictionaries
+        """
+
+        # Step 1: Check cache first (unless force refresh)
+        if not force_refresh:
+            is_fresh, cache_file = self.is_cache_fresh(max_cache_age_hours)
+
+            if is_fresh and cache_file:
+                logger.info("Using fresh cached proxy list")
+                return self.load_proxy_list_from_file(cache_file)
+
+        # Step 2: Cache is stale or force refresh - fetch and process new data
+        logger.info("Cache stale or force refresh - fetching new proxy data")
+        return self.fetch_and_process_proxies()  # This does the heavy lifting
+
     ### TODO
 
-    # process the proxy list
+    # save proxy list
+    # load proxy list
