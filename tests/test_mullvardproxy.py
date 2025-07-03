@@ -7,6 +7,18 @@ from webdriver import MullvadProxyManager, MyWebDriver
 logging.basicConfig(level=logging.INFO)
 
 
+def test_proxy_fetch():
+    """
+    mostly to fix the splitting of america country strings as they are in the format
+    city, state -> Los Angeles, CA  - Houston, TX
+    """
+    pm = MullvadProxyManager()
+    proxy_list = pm.fetch_proxy_list()
+
+    for p in proxy_list:
+        print(p)
+
+
 def test_basic_setup():
     proxy_manager = MullvadProxyManager()
     proxy_list = proxy_manager.fetch_proxy_list()
@@ -71,7 +83,8 @@ def test_hydra_error():
 
 
 if __name__ == "__main__":
+    test_proxy_fetch()
     #    test_basic_setup()
     #    test_check_proxy()
     #    test_check_proxy_list()
-    test_hydra_error()
+#     test_hydra_error()

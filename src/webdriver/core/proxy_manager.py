@@ -34,6 +34,7 @@ import json
 import logging
 import os
 import random
+import re
 import time
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -143,6 +144,37 @@ class MullvadProxyManager:
     def __init__(self) -> None:
         logger.debug("running")
 
+    def _parse_proxy_line(self, line: str) -> Optional[Tuple[str, str, str, str]]:
+        """
+        handle the parsing of the proxy lines, mostly to deal with USA states - extra spaces.
+
+        Returns:
+            None - If issue parsing the line, else
+            country, city, socks5_address, hostnames as str.
+        """
+
+        try:
+            # split for spaces greater than 2
+            parts: list[str] = re.split(r" {2,}", line.strip())
+            # remove empty parts
+            parts = [part for part in parts if part]
+            num_parts: int = len(parts)
+
+            if (num_parts < 20) and (num_parts >= 4):
+                flag: str = parts[0]
+                country: str = parts[1].replace(" ", "_")
+                city: str = parts[2].replace(", ", "_").replace(" ", "_")
+                socks5_address: str = parts[3]
+                hostname = parts[-1]
+
+                return country, city, socks5_address, hostname
+            logger.debug(f"Warning processing\n{line=}.")
+            return None
+
+        except Exception as e:
+            logger.debug(f"Warning processing: {str(e)}\n{line=}.")
+            return None
+
     def fetch_proxy_list(self) -> List[Dict]:
         """
         Fetch and parse the list of available Mullvad SOCKS5 proxies.
@@ -168,27 +200,21 @@ class MullvadProxyManager:
             ]
 
             for line in data_lines:
-                # Parse each line
-                parts = line.split()
-                if len(parts) >= 6:
-                    # Extract the relevant fields
-                    try:
-                        country = parts[1]
-                        city = parts[2]
-                        socks5_address = parts[3]  # This is the Mullvad SOCKS5 address
-                        hostname = parts[-1]
-
-                        proxy_list.append(
-                            {
-                                "country": country,
-                                "city": city,
-                                "socks5": socks5_address,
-                                "hostname": hostname,
-                                "proxy_url": f"socks5://{socks5_address}:1080",
-                            }
-                        )
-                    except IndexError:
-                        continue
+                parse_line_results = self._parse_proxy_line(line)
+                # check for good return aka not none.
+                if parse_line_results:
+                    country, city, socks5_address, hostname = parse_line_results
+                    proxy_list.append(
+                        {
+                            "country": country,
+                            "city": city,
+                            "socks5": socks5_address,
+                            "hostname": hostname,
+                            "proxy_url": f"socks5://{socks5_address}:1080",
+                        }
+                    )
+                else:
+                    continue
 
             logger.info(f"Fetched {len(proxy_list)} Mullvad SOCKS5 proxies")
             return proxy_list
