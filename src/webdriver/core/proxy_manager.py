@@ -389,7 +389,10 @@ class MullvadProxyManager:
         )
 
     def save_proxy_list(
-        self, proxy_list: list[dict], custom_dir: Optional[str] = None
+        self,
+        proxy_list: list[dict],
+        unfiltered: bool = False,
+        custom_dir: Optional[str] = None,
     ) -> None:
         """
         Save a proxy list to disk as JSON.
@@ -402,8 +405,12 @@ class MullvadProxyManager:
         # Use custom dir if provided, otherwise use default
         if custom_dir:
             save_dir = Path(custom_dir)
+
         else:
-            save_dir = self.data_dir
+            if unfiltered:
+                save_dir = self.data_dir / "raw"
+            else:
+                save_dir = self.data_dir
 
         timestamp: str = datetime.datetime.now().strftime("%Y_%m_%d")
         file_path: Path = save_dir / f"{timestamp}.json"
@@ -444,7 +451,7 @@ class MullvadProxyManager:
             Path to the latest file or None if no files exist
         """
         try:
-            json_files = list(self.data_dir.glob("mullvad_proxies_*.json"))
+            json_files = list(self.data_dir.glob("*.json"))
             if not json_files:
                 logger.debug("No proxy files found in data directory")
                 return None
@@ -547,6 +554,7 @@ class MullvadProxyManager:
         # Step 3: Save the processed proxy list
         try:
             self.save_proxy_list(valid_proxies)
+            self.save_proxy_list(proxy_list, unfiltered=True)  # saved for debugging
             logger.info("Saved processed proxy list to cache")
         except Exception as e:
             logger.error(f"Failed to save proxy list: {str(e)}")

@@ -24,6 +24,11 @@ from webdriver.core.options import ChromeOptionsBuilder
 logger = logging.getLogger(__name__)
 
 
+# TODO
+# add timeout limits
+# option builder improve handling
+
+
 class MyWebDriver:
     """Enhanced existing MyWebDriver class with IP rotation capabilities."""
 
