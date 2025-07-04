@@ -18,7 +18,7 @@ Will be using wire guard + mullvad vpn (sock5), in order to do ip rotation.
 
 2. Set up socks5
     - method to add the a sock5 to be used by the driver.
-    - a choice to randoism it.
+- a choice to randoism it.
     - then check curl
         curl https://am.i.mullvad.net
         has change the ip, so before then after to ensure we have rotated the ip.
@@ -32,20 +32,22 @@ Will be using wire guard + mullvad vpn (sock5), in order to do ip rotation.
 import datetime
 import json
 import logging
-import os
 import random
 import re
-import time
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pkg_resources
 import requests
 from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
+from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm  # Import tqdm for progress bars
+
+from webdriver.core.options import ChromeOptionsBuilder
+from webdriver.utils import is_valid_chrome_webdriver_config
 
 from .mywebdriver import MyWebDriver
 
@@ -238,7 +240,7 @@ class MullvadProxyManager:
     def _socks_override(self, socks5_dict: dict[str, Union[str, bool]]) -> List[str]:
         return [f"+socks5.{key}={value}" for key, value in socks5_dict.items()]
 
-    def _load_package_config(
+    def _load_mywebdrive_config(
         self, config_name: str = "proxy_init_run", overrides: Optional[list] = None
     ) -> DictConfig:
         """
@@ -260,6 +262,28 @@ class MullvadProxyManager:
             # Clean up
             GlobalHydra.instance().clear()
 
+    def _get_webdrive_chrome_optionsbuilder(
+        self, config: DictConfig
+    ) -> ChromeOptionsBuilder:
+        """
+        sets up a chromeoptions class with the stated config.
+        ? Creates a copy thus it can be changed by the threading process.
+
+        Returns:
+            ChromeOptionsBuilder. set up as state in conf/
+        """
+
+        if config:
+            if is_valid_chrome_webdriver_config(config):
+                options_builder: ChromeOptionsBuilder = instantiate(
+                    config.webdriver.browser.options
+                )
+
+                return options_builder
+        else:
+            logger.error("Error getting the chrome options options_builder.")
+            raise ValueError
+
     def check_wg_mullvad_connection(self) -> bool:
         """
         method to check computer is connected via wireguard and to mullvad vpn service.
@@ -278,7 +302,9 @@ class MullvadProxyManager:
             return False
 
     # Check proxy
-    def check_proxy(self, proxy: Dict[str, Union[str, bool]]) -> bool:
+    def check_proxy(
+        self, options_builder: ChromeOptionsBuilder, proxy: Dict[str, Union[str, bool]]
+    ) -> bool:
         """
         Check if a proxy works with the Sofascore API.
 
@@ -291,14 +317,16 @@ class MullvadProxyManager:
         Returns:
             Boolean indicating if the proxy works with Sofascore
         """
+        logger.debug("-" * 10 + "checking proxy")
+
         logger.debug(
             f"Checking proxy: country={proxy.get('country')}, hostname={proxy.get('hostname')}."
         )
 
         try:
-            driver: MyWebDriver = MyWebDriver(
-                config=self._load_package_config(overrides=self._socks_override(proxy))
-            )
+            webdriver_options = options_builder.add_proxy_and_build(proxy)
+
+            driver: MyWebDriver = MyWebDriver(options=webdriver_options)
 
             try:
                 test_sofascore_url: str = self.SOFA_EMPTY_TOUR.format(
@@ -312,7 +340,7 @@ class MullvadProxyManager:
 
                 driver.close()
 
-                proxy["checked_at"] = datetime.datetime.utcnow().isoformat()
+                proxy["checked_at"] = datetime.datetime.now().isoformat()
 
                 if page_data and isinstance(page_data, dict):
                     # Success case:
@@ -334,9 +362,11 @@ class MullvadProxyManager:
 
             # driver nav error
             except Exception as nav_error:
-                logger.warning(
+                logger.warning(f"Navigation error with proxy {proxy.get('hostname')}.")
+                logger.debug(
                     f"Navigation error with proxy {proxy.get('hostname')}: {str(nav_error)}"
                 )
+
                 proxy["valid"] = False
                 proxy["error"] = str(nav_error)
                 driver.close()
@@ -367,11 +397,17 @@ class MullvadProxyManager:
         num_proxies = len(proxy_list)
         num_good_proxies: int = 0
         logger.info(f"Checking {num_proxies} proxies for Sofascore compatibility.")
+        options_builder: ChromeOptionsBuilder = (
+            self._get_webdrive_chrome_optionsbuilder(
+                config=self._load_mywebdrive_config()
+            )
+        )
 
         with ThreadPoolExecutor(max_workers=max_workers) as excutor:
 
             futures_to_proxy: dict[Future, dict] = {
-                excutor.submit(self.check_proxy, proxy): proxy for proxy in proxy_list
+                excutor.submit(self.check_proxy, options_builder, proxy): proxy
+                for proxy in proxy_list
             }
 
             with tqdm(total=num_proxies, desc="Testing proxies", unit="proxy") as pbar:

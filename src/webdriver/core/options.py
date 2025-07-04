@@ -1,7 +1,8 @@
 """Options builders for different browsers."""
 
+import copy
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from omegaconf import DictConfig
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -54,6 +55,28 @@ class ChromeOptionsBuilder:
         """Return the configured ChromeOptions."""
         logger.debug("returning chrome options.")
         return self.options
+
+    def add_proxy_and_build(self, proxy: dict[str, Union[str, bool]]) -> ChromeOptions:
+        options: ChromeOptions = copy.deepcopy(self.options)
+        logger.debug(f"Setting socks5 proxy. {proxy =} ")
+
+        if proxy.get("proxy_url", None):
+            options.add_argument(f"--proxy-server={proxy['proxy_url']}")
+        else:
+            logger.debug(
+                f" Warning no socks5 address added, {proxy.get('hostname') =}."
+            )
+            raise ValueError(f" Error with the proxy, {proxy.get('hostname') =}.")
+
+        if proxy.get("socks5", None):
+            options.add_argument(
+                f"--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE {proxy['socks5']}"
+            )
+            logger.debug(
+                f" Warning no socks5 host resolver added, {proxy.get('hostname') =}."
+            )
+
+        return options
 
     def debug_chrome_options(self) -> None:
         """Print all Chrome options for debugging."""
