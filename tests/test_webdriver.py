@@ -1,10 +1,11 @@
 # test_basic.py
+import json
 import logging
 
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
+import webdriver.core.factory as factory
 from webdriver import MullvadProxyManager, MyWebDriver
-from webdriver.core.factory import create_webdriver_with_hydra
 
 # Configure logging
 # logging.basicConfig(level=logging.DEBUG)
@@ -14,33 +15,24 @@ logging.basicConfig(level=logging.DEBUG)
 
 def test_basic_webdriver():
     """Test basic WebDriver functionality."""
+    print("=" * 15 + " Running Simple webdriver setup" + "=" * 15)
 
-    # Test 1: Direct parameters (backward compatibility)
-    print("Testing direct parameters...")
-    driver = MyWebDriver(headless=True, session_id="test_1")
-    driver.navigate("https://www.sscardapane.it/tutorials/hydra-tutorial/")
-    print(f"Current URL: {driver.current_url}")
-    driver.close()
+    # here we load the config
+    cfg: DictConfig = factory.load_package_config(config_name="test_config")
+    print(f"print cfg:\n{OmegaConf.to_yaml(cfg)}\n.")
+    chrome_optionbuilder = factory.get_webdrive_chrome_optionbuilder(cfg)
 
-    # Test 2: Config object (when you add Hydra)
-    print("Testing config object...")
+    print(f"chrome options: {chrome_optionbuilder}.")
 
-    config = DictConfig(
-        {
-            "browser": {
-                "headless": True,
-                "timeout": 30,
-                "binary_location": "/usr/bin/chromium",
-                "driver_path": "/usr/bin/chromedriver",
-            }
-        }
-    )
-    driver = MyWebDriver(config=config, session_id="test_2")
-    driver.navigate("https://www.sscardapane.it/tutorials/hydra-tutorial/")
-    print(f"Current URL: {driver.current_url}")
-    driver.close()
+    options = chrome_optionbuilder.build()
 
-    print("Basic tests passed!")
+    webdriver = MyWebDriver(config=cfg, options=options, session_id="test1")
+
+    # TODO
+    # update webdriver to have cfg input
+    # call webdriver
+
+    print("-" * 15 + " Basic tests passed! " + "-" * 15)
 
 
 def test_basic_webdriver_with_head():
@@ -84,5 +76,6 @@ def test_getting_json_content() -> None:
 
 
 if __name__ == "__main__":
-    #    test_basic_webdriver_with_head()
-    test_getting_json_content()
+    test_basic_webdriver()
+# test_basic_webdriver_with_head()
+#    test_getting_json_content()

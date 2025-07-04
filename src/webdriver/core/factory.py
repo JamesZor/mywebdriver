@@ -9,7 +9,11 @@ from typing import Optional
 import pkg_resources
 from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
+from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
+
+from webdriver.core.options import ChromeOptionsBuilder
+from webdriver.utils.validators import is_valid_chrome_webdriver_config
 
 from .mywebdriver import MyWebDriver
 
@@ -63,3 +67,24 @@ def load_package_config(
     finally:
         # Clean up
         GlobalHydra.instance().clear()
+
+
+def get_webdrive_chrome_optionbuilder(config: DictConfig) -> ChromeOptionsBuilder:
+    """
+    sets up a chromeoptions class with the stated config.
+    ? Creates a copy thus it can be changed by the threading process.
+
+    Returns:
+        ChromeOptionsBuilder. set up as state in conf/
+    """
+
+    if config:
+        if is_valid_chrome_webdriver_config(config):
+            options_builder: ChromeOptionsBuilder = instantiate(
+                config.webdriver.browser.options
+            )
+
+            return options_builder
+    else:
+        logger.error("Error getting the chrome options options_builder.")
+        raise ValueError

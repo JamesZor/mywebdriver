@@ -4,7 +4,7 @@ File description
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
@@ -43,39 +43,57 @@ class MyWebDriver:
             session_id: Unique identifier for this driver instance
             **kwargs: Direct parameters for backward compatibility
         """
-        self.config: Optional[DictConfig] = config
+        logger.debug("++++ WebDriver starting. ++++")
+
+        self.config: DictConfig = config
         self.options: Optional[ChromeOptions] = options
         self.session_id: str = session_id or "default"
 
-        if config:
-            if is_valid_chrome_webdriver_config(config):
-                # Use Hydra instantiation
-                self._init_from_hydra_config(config)
-                logger.debug(f"Config file:\n{OmegaConf.to_yaml(config)}.")
-        elif options:
-            self._init_from_chromeOptions(options)
+        if options:
+            logger.debug("Loading the options.")
+            self._init_from_chromeOptions(
+                options,
+                executable_path=config.webdriver.browser.service.executable_path,
+                page_timeout=config.webdriver.timeouts.page_load,
+            )
 
-        else:
-            logger.error("Initialisation failed, no valid config or options")
-            raise ValueError("Config structure is invalid")
+        if self.config.proxy.enabled:
+            logger.debug(" Socks5 proxy enabled.")
+
+            # rotation:
+            if self.config.proxy.rotation.enabled:
+                logger.debug(" Proxy socks5 rotation enabled.")
+                self.fn: Callable = self._test_call_1
+
+        self.fn: Callable = self._test_call_2
+
+        logger.debug(f" running fn: {self.fn()}")
 
         #
+
         logger.debug(f"WebDriver initialized for session: {self.session_id}")
+
+    def _test_call_1(self) -> str:
+        return "this is call 1"
+
+    def _test_call_2(self) -> str:
+        return " ehehe call 2"
 
     def _init_from_chromeOptions(
         self,
         options: ChromeOptions,
-        binary_location: str = "/usr/bin/chromedriver",
+        executable_path: str = "/usr/bin/chromedriver",
         page_timeout: int = 10,
     ):
         logger.debug("=" * 6 + " Init WebDriver using Options " + "=" * 6)
         service = Service(
-            executable_path=binary_location
+            executable_path=executable_path
         )  # Fixed typo and missing parenthesis
         self.driver = webdriver.Chrome(service=service, options=options)
         self.driver.set_page_load_timeout(page_timeout)
 
     def _init_from_hydra_config(self, config: DictConfig):
+        # old func - see to remove / modify
         """Initialize using Hydra instantiate."""
         logger.debug("=" * 6 + " Init WebDriver using Hydra " + "=" * 6)
         # Build the options using the options builder

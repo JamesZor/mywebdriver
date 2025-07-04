@@ -1,15 +1,13 @@
+# conf/test_config 
+#
+# config to run tests on the webdriver. 
+#
 defaults:
-  - webdriver: chrome
-  - proxy: disabled
+  - webdriver: test_webdriver
+  - proxy: test_proxy
   - _self_
 
 # Global package settings
 package:
   name: "webdriver_proxy"
   version: "0.1.0"
-
-# Test 
-test:
-  name: "This is a test load config"
-  number: 42
-

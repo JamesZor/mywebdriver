@@ -1,6 +1,7 @@
 """Options builders for different browsers."""
 
 import copy
+import json
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -78,6 +79,10 @@ class ChromeOptionsBuilder:
 
         return options
 
+    def __str__(self) -> str:
+        return json.dumps(self.options.to_capabilities(), indent=2)
+
+    # get rid of this
     def debug_chrome_options(self) -> None:
         """Print all Chrome options for debugging."""
         logger.debug("=" * 20 + " CHROME OPTIONS DEBUG " + "=" * 20)
