@@ -32,6 +32,8 @@ def test_basic_webdriver():
     # update webdriver to have cfg input
     # call webdriver
 
+    webdriver.close()
+
     print("-" * 15 + " Basic tests passed! " + "-" * 15)
 
 
