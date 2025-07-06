@@ -10,6 +10,7 @@ from webdriver import MullvadProxyManager, MyWebDriver
 
 # Configure logging for tests
 logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger()
 
 TEST_PROXY_DICT: dict = {
     "country": "Switzerland",
@@ -81,30 +82,57 @@ def rotation_enabled_config():
 def test_basic_webdriver_creation(basic_config):
     """Test that WebDriver can be created and closed without errors."""
     # Add debug output like your original tests!
-    print("=" * 15 + " Running pytest webdriver creation test " + "=" * 15)
-    print(f"Config loaded: {OmegaConf.to_yaml(basic_config)}")
+    logger.debug("=" * 15 + " Running pytest webdriver creation test " + "=" * 15)
+    logger.debug(f"Config loaded: {OmegaConf.to_yaml(basic_config)}")
 
     # Setup
     chrome_optionbuilder = factory.get_webdrive_chrome_optionbuilder(basic_config)
-    print(f"Chrome options created: {chrome_optionbuilder}")
+    logger.debug(f"Chrome options created: {chrome_optionbuilder}")
 
     # Test
-    print("Creating webdriver...")
-    webdriver = MyWebDriver(
-        config=basic_config, optionsbulder=chrome_optionbuilder, session_id="test_basic"
+    logger.debug("Creating webdriver...")
+    webdriver: MyWebDriver = MyWebDriver(
+        config=basic_config,
+        optionsbuilder=chrome_optionbuilder,
+        session_id="test_basic",
     )
-    print("Webdriver created successfully!")
+    logger.debug("Webdriver created successfully!")
 
     # Assertions - This is what pytest checks!
     assert webdriver is not None, "WebDriver should be created successfully"
     assert hasattr(webdriver, "close"), "WebDriver should have close method"
 
-    # Cleanup
-    print("Closing webdriver...")
-    webdriver.close()
-    print("Test completed!")
+    assert webdriver.config is basic_config, "Webdriver config is incorrect"
+    assert (
+        webdriver.options is chrome_optionbuilder
+    ), "Webdriver has correct options builder"
 
-    # Could add more assertions here about the state after closing
+    # check configs been set up
+    # proxy
+    assert (
+        webdriver.config.proxy.enabled is False
+    ), f"Expected proxy.enabled as false got {webdriver.config.proxy.enabled}."
+    assert (
+        webdriver.set_proxy is None
+    ), f"Expected none set_proxy, got {webdriver.set_proxy}"
+
+    assert webdriver.proxy_list is None, "Expected none proxy list."
+
+    assert (
+        webdriver.config.proxy.rotation.enabled is False
+    ), f"Expected rotation enabled as false, got {webdriver.config.proxy.rotation.enabled}"
+
+    assert (
+        webdriver.get_page.__func__ is webdriver.go_get_json.__func__
+    ), f"Expected get_page to be go_get_json, but got {webdriver.get_page.__func__}"
+    # Cleanup
+
+    assert hasattr(webdriver, "driver"), "Expecting mywebdrive to have driver"
+    assert webdriver.driver, f"Expecting driver, not none, {webdriver.driver}"
+
+    webdriver.close()
+
+    assert webdriver.driver is None, f"webdriver is closed, {webdriver.driver}"
 
 
 # YOUR TURN: Convert this next test

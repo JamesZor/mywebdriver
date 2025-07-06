@@ -2,14 +2,15 @@
 File description
 """
 
+import atexit
 import json
 import logging
+import signal
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-from hydra.utils import instantiate
 from numpy.random import Generator as RandomGenrator
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from selenium import webdriver
 from selenium.common.exceptions import (
     WebDriverException,
@@ -18,7 +19,6 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service
 
 from webdriver.core.options import ChromeOptionsBuilder
-from webdriver.utils import is_valid_chrome_webdriver_config
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class MyWebDriver:
 
     def __init__(
         self,
-        optionsbulder: ChromeOptionsBuilder,
+        optionsbuilder: ChromeOptionsBuilder,
         config: Optional[DictConfig] = None,
         proxy: Optional[dict[str, Union[str, bool]]] = None,
         proxy_list: Optional[list[dict]] = None,
@@ -50,9 +50,13 @@ class MyWebDriver:
             **kwargs: Direct parameters for backward compatibility
         """
         logger.debug("++++ WebDriver starting. ++++")
+        # Register cleanup handlers for emergency exits
+        atexit.register(self._emergency_cleanup)
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
 
         self.config: DictConfig = config
-        self.options: Optional[ChromeOptionsBuilder] = optionsbulder
+        self.options: Optional[ChromeOptionsBuilder] = optionsbuilder
         self.session_id: str = session_id or "default"
         self.set_proxy: Optional[dict] = None
         self.proxy_list: Optional[list[dict]] = proxy_list
@@ -89,7 +93,7 @@ class MyWebDriver:
 
                     self.get_page = self.go_get_json_rotation
 
-        if optionsbulder is not None:
+        if optionsbuilder is not None:
             logger.debug("Loading the options.")
             self._init_from_chromeOptionsBuilder()
         else:
@@ -241,7 +245,21 @@ class MyWebDriver:
         """Close the driver."""
         if hasattr(self, "driver") and self.driver:
             self.driver.quit()
+            self.driver = None
             logger.debug(f"WebDriver closed for session: {self.session_id}")
+
+    def _emergency_cleanup(self):
+        """Emergency cleanup for unexpected exits."""
+        try:
+            if hasattr(self, "driver") and self.driver:
+                self.driver.quit()
+        except:
+            pass  # Ignore errors during emergency cleanup
+
+    def _signal_handler(self, signum, frame):
+        """Handle interrupt signals."""
+        self._emergency_cleanup()
+        raise KeyboardInterrupt()
 
     def __enter__(self):
         return self
