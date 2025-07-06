@@ -52,7 +52,7 @@ browser:
 # Increased page_load timeout to help with bottleneck
 timeouts:
   implicit: 3
-  page_load: 3  # Increased from 10 to 30 seconds
+  page_load: 10  # Increased from 10 to 30 seconds
   element_wait: 3
 
 # Notes for performance tuning

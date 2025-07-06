@@ -1,5 +1,5 @@
 # config to test webdriver
-enabled: true # to turn on using socks5 proxy 
+enabled: false # to turn on using socks5 proxy 
 
 rotation: # setting for rotation, the number of hops before changing the sock5 address 
   enabled: false # turn on/off the hops counter 

@@ -52,7 +52,7 @@ class MyWebDriver:
         logger.debug("++++ WebDriver starting. ++++")
 
         self.config: DictConfig = config
-        self.options: Optional[ChromeOptions] = optionsbulder
+        self.options: Optional[ChromeOptionsBuilder] = optionsbulder
         self.session_id: str = session_id or "default"
         self.set_proxy: Optional[dict] = None
         self.proxy_list: Optional[list[dict]] = proxy_list
@@ -65,11 +65,14 @@ class MyWebDriver:
         self.rotation_counter: Optional[int] = None
 
         # proxy logic
-        if self.proxy.enabled:
+        if self.config.proxy.enabled:
             logger.debug(" Socks5 proxy enabled.")
+            logger.debug(f" {proxy =}")
+
+            logger.debug(f" {proxy_list =}")
 
             # if given a single proxy, use this, ignore list.
-            if proxy:
+            if proxy is not None:
                 logger.debug(
                     f"Setting drivers proxy,from given arg: {proxy.get('hostname')}."
                 )
@@ -86,13 +89,11 @@ class MyWebDriver:
 
                     self.get_page = self.go_get_json_rotation
 
-        if optionsbulder:
+        if optionsbulder is not None:
             logger.debug("Loading the options.")
-            self._init_from_chromeOptions(
-                optionsbulder,
-                executable_path=config.webdriver.browser.service.executable_path,
-                page_timeout=config.webdriver.timeouts.page_load,
-            )
+            self._init_from_chromeOptionsBuilder()
+        else:
+            raise ValueError("Need to pass an option builder.")
 
         logger.debug(f"WebDriver initialized for session: {self.session_id}")
 
@@ -100,8 +101,8 @@ class MyWebDriver:
         """
         set the rotation counter, and resets.
         """
-        rotation_type: str = self.config.rotation.random_type
-        interval: list[int] = self.config.rotation.interval
+        rotation_type: str = self.config.proxy.rotation.random_type
+        interval: list[int] = self.config.proxy.rotation.interval
 
         if rotation_type == "fixed":
             self.rotation_counter: int = interval[0]
@@ -121,7 +122,7 @@ class MyWebDriver:
         Randomly set a proxy from the given proxy list.
         """
         if self.proxy_list:
-            random_proxy: dict = self.rng.choice(self.proxy_list, size=1)
+            random_proxy: dict = self.rng.choice(self.proxy_list)
             self.set_proxy = random_proxy
             logger.debug(f"Selected randomly proxy: {random_proxy.get('hostname')}.")
         else:
@@ -129,70 +130,20 @@ class MyWebDriver:
 
     def _init_from_chromeOptionsBuilder(
         self,
-        executable_path: str = "/usr/bin/chromedriver",
-        page_timeout: int = 10,
     ):
         logger.debug("=" * 6 + " Init WebDriver using Options " + "=" * 6)
-        service = Service(executable_path=self.config.browser.service.binary_location)
+        service = Service(
+            executable_path=self.config.webdriver.browser.service.executable_path
+        )
         if self.config.proxy.enabled:
             options: ChromeOptions = self.options.add_proxy_and_build(
                 proxy=self.set_proxy
             )
         else:
-            options: ChromeOptions = self.options.build(proxy=self.set_proxy)
+            options: ChromeOptions = self.options.build()
 
         self.driver = webdriver.Chrome(service=service, options=options)
         self.driver.set_page_load_timeout(self.config.webdriver.timeouts.page_load)
-
-    def _init_from_chromeOptions(
-        self,
-        options: ChromeOptions,
-        executable_path: str = "/usr/bin/chromedriver",
-        page_timeout: int = 10,
-    ):
-        logger.debug("=" * 6 + " Init WebDriver using Options " + "=" * 6)
-        service = Service(
-            executable_path=executable_path
-        )  # Fixed typo and missing parenthesis
-        self.driver = webdriver.Chrome(service=service, options=options)
-        self.driver.set_page_load_timeout(page_timeout)
-
-    def _init_from_hydra_config(self, config: DictConfig):
-        # old func - see to remove / modify
-        """Initialize using Hydra instantiate."""
-        logger.debug("=" * 6 + " Init WebDriver using Hydra " + "=" * 6)
-        # Build the options using the options builder
-        options_builder: ChromeOptionsBuilder = instantiate(
-            config.webdriver.browser.options
-        )
-
-        # Proxy socks5
-        if self.socks5:
-            options_builder.proxy_sock5(self.socks5)
-
-        # DEBUG: Print all Chrome options before creating driver
-        options_builder.debug_chrome_options()
-
-        options = options_builder.build()
-
-        # Create the service
-        service = instantiate(config.webdriver.browser.service)
-
-        # Create the driver
-        self.driver = instantiate(
-            config.webdriver.browser, service=service, options=options
-        )
-
-        # Set timeouts
-        if hasattr(config, "timeouts"):
-            self.driver.implicitly_wait(config.timeouts.implicit)
-
-            # Set page load timeout - important for bottleneck!
-            page_load_timeout = config.timeouts.page_load
-            self.driver.set_page_load_timeout(page_load_timeout)
-            logger.debug(f"Set page load timeout to {page_load_timeout} seconds")
-
-        logger.debug("=" * 6 + " WebDriver init complete " + "=" * 6)
 
     def navigate(self, url: str) -> None:
         """Navigate to URL."""
