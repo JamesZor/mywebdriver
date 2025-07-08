@@ -12,6 +12,9 @@ from webdriver import MullvadProxyManager, MyWebDriver
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 
+
+DEFAULT_HOSTNAME: str = "gb-glw-wg-001"
+
 TEST_PROXY_DICT: dict = {
     "country": "Switzerland",
     "city": "Zurich",
@@ -96,6 +99,7 @@ def test_basic_webdriver_creation(basic_config):
         optionsbuilder=chrome_optionbuilder,
         session_id="test_basic",
     )
+
     logger.debug("Webdriver created successfully!")
 
     # Assertions - This is what pytest checks!
@@ -135,19 +139,31 @@ def test_basic_webdriver_creation(basic_config):
     assert webdriver.driver is None, f"webdriver is closed, {webdriver.driver}"
 
 
-# YOUR TURN: Convert this next test
 def test_basic_webdriver_get_data(basic_config):
     """Test basic WebDriver can fetch data from a URL."""
-    # TODO: You fill this in following the pattern above
-    # 1. Setup chrome_optionbuilder and webdriver
-    # 2. Define test_url
-    # 3. Call webdriver.get_page()
-    # 4. Add assertions about the returned data
-    # 5. Cleanup
-    pass
+    # setup
+    chrome_optionbuilder = factory.get_webdrive_chrome_optionbuilder(basic_config)
+    logger.debug(f"Chrome options\n {chrome_optionbuilder}")
+
+    webdriver: MyWebDriver = MyWebDriver(
+        optionsbuilder=chrome_optionbuilder,
+        config=basic_config,
+        session_id="pytest_get_data",
+    )
+
+    logger.debug(f"Getting data from: {TEST_URL_MULLVAD}")
+    data = webdriver.get_page(TEST_URL_MULLVAD)
+    logger.debug(f"Data:\n{data}")
+
+    assert data is not None, "Data context is None, should be something."
+    assert isinstance(data, dict), f"Data context is not a dict: {type(data)}"
+    hostname = data.get("mullvad_exit_ip_hostname")
+
+    assert hostname == DEFAULT_HOSTNAME, f"Hostnames don't match: {hostname =}"
+
+    webdriver.close()
 
 
-# PARTIALLY COMPLETED: You can finish this one
 def test_webdriver_with_proxy(proxy_enabled_config):
     """Test WebDriver creation with proxy configuration."""
     chrome_optionbuilder = factory.get_webdrive_chrome_optionbuilder(
@@ -155,25 +171,77 @@ def test_webdriver_with_proxy(proxy_enabled_config):
     )
 
     webdriver = MyWebDriver(
+        optionsbuilder=chrome_optionbuilder,
         config=proxy_enabled_config,
-        optionsbulder=chrome_optionbuilder,
         proxy=TEST_PROXY_DICT,
         session_id="test_proxy",
     )
+    logger.debug(f"Getting data from: {TEST_URL_MULLVAD}")
+    data = webdriver.get_page(TEST_URL_MULLVAD)
+    logger.debug(f"Data:\n{data}")
 
-    # TODO: Add your assertions here
-    # What should you test about the webdriver when using a proxy?
+    assert data is not None, "Data context is None, should be something."
+    assert isinstance(data, dict), f"Data context is not a dict: {type(data)}"
+    hostname = data.get("mullvad_exit_ip_hostname").replace("-socks5", "")
+
+    assert hostname == TEST_PROXY_DICT.get(
+        "hostname"
+    ), f"Hostnames don't match: {hostname =}"
 
     webdriver.close()
 
 
-# CHALLENGE: Convert your rotation test
-def test_proxy_rotation():
+def test_proxy_rotation(rotation_enabled_config):
     """Test that proxy rotation actually rotates between different proxies."""
     # TODO: This is your more complex test to convert
     # Hint: You'll need the rotation_enabled_config fixture
     # and should assert that different hostnames are used
-    pass
+    chrome_optionbuilder = factory.get_webdrive_chrome_optionbuilder(
+        rotation_enabled_config
+    )
+    webdriver = MyWebDriver(
+        optionsbuilder=chrome_optionbuilder,
+        config=rotation_enabled_config,
+        proxy_list=TEST_PROXY_LIST,
+        session_id="test_proxy",
+    )
+
+    # check to see if it sets rotation and proxy correctly
+    # first get a set of hostname
+    proxy_urls: set = {x.get("proxy_url") for x in TEST_PROXY_LIST if x is not None}
+    for x in proxy_urls:
+        logger.debug(f"set of proxys: {x}.")
+    assert webdriver.set_proxy is not None, "Expecting set_proxy to not be None."
+    assert (
+        webdriver.set_proxy.get("proxy_url") in proxy_urls
+    ), f"Expecting set_proxy to be in test list: {webdriver.set_proxy.get('proxy_url')}"
+    assert (
+        webdriver.config.proxy.rotation.enabled
+    ), f"Expected rotation enabled as true, got {webdriver.config.proxy.rotation.enabled}"
+    assert (
+        webdriver.rotation_counter is not None
+    ), f"Expected an int for rotation_counter, got {webdriver.rotation_counter}."
+    assert (
+        webdriver.rotation_counter == 3
+    ), f"Expected an int 3 for rotation_counter, got {webdriver.rotation_counter}."
+
+    assert (
+        webdriver.get_page.__func__ is webdriver.go_get_json_rotation.__func__
+    ), f"Expected get_page to be go_get_json, but got {webdriver.get_page.__func__}"
+
+    proxy_host_name = webdriver.set_proxy.get("hostname")
+    logger.debug(f"webdriver proxy set to: {proxy_host_name}")
+
+    results = {}
+    for i in range(3):
+        data = webdriver.get_page(TEST_URL_MULLVAD)
+        assert data is not None, "Data context is None, should be something."
+        assert isinstance(data, dict), f"Data context is not a dict: {type(data)}"
+
+        hostname = data.get("mullvad_exit_ip_hostname").replace("-socks5", "")
+        assert hostname == proxy_host_name, f"Hostnames don't match: {hostname =}"
+
+    webdriver.close()
 
 
 # Example of parametrized test (advanced)
