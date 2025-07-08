@@ -28,6 +28,40 @@ logger = logging.getLogger(__name__)
 
 # rotations logic
 
+import time
+from functools import wraps
+
+from selenium.common.exceptions import TimeoutException, WebDriverException
+
+
+def retry(func):
+    """Simple retry decorator that uses config from self.config"""
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        # Get retry settings from config (add these to your config files)
+        max_attempts = getattr(self.config.webdriver, "retry_attempts", 3)
+        delay = getattr(self.config.webdriver, "retry_delay", 2.0)
+
+        for attempt in range(max_attempts):
+            try:
+                return func(self, *args, **kwargs)
+            except (TimeoutException, WebDriverException) as e:
+                if attempt == max_attempts - 1:  # Last attempt
+                    logger.error(
+                        f"{func.__name__} failed after {max_attempts} attempts: {e}"
+                    )
+                    return None  # Return None instead of crashing
+                else:
+                    logger.warning(
+                        f"{func.__name__} attempt {attempt + 1} failed: {e}. Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+
+        return None
+
+    return wrapper
+
 
 class MyWebDriver:
     """Enhanced existing MyWebDriver class with IP rotation capabilities."""
@@ -186,12 +220,7 @@ class MyWebDriver:
             raise
 
     def get_json_content(self) -> Optional[Union[Dict, List, str, int, float, bool]]:
-        """
-        Get JSON content from document.body.innerText.
-
-        Returns:
-            Parsed JSON content or None if parsing fails
-        """
+        """Get JSON content from document.body.innerText."""
         JAVASCRIPT_COMMAND = "return document.body.innerText"
 
         try:
@@ -216,6 +245,7 @@ class MyWebDriver:
             logger.error(f"Error getting JSON content at {self.current_url}: {e}")
             return None
 
+    @retry
     def go_get_json(
         self, url: str
     ) -> Optional[Union[Dict, List, str, int, float, bool]]:

@@ -33,3 +33,6 @@ timeouts:
   page_load: 15  # Increased from 10 to 30 seconds
   element_wait: 3
 
+retry_attempts: 3 
+retry_delay: 2.0
+
