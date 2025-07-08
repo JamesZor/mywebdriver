@@ -241,6 +241,14 @@ def test_proxy_rotation(rotation_enabled_config):
         hostname = data.get("mullvad_exit_ip_hostname").replace("-socks5", "")
         assert hostname == proxy_host_name, f"Hostnames don't match: {hostname =}"
 
+    data = webdriver.get_page(TEST_URL_MULLVAD)
+    assert data is not None, "Data context is None, should be something."
+    assert isinstance(data, dict), f"Data context is not a dict: {type(data)}"
+    hostname = data.get("mullvad_exit_ip_hostname").replace("-socks5", "")
+    assert (
+        hostname != proxy_host_name
+    ), f"Hostnames should not match, as is rotation ( 1/4 chance tho): {hostname =}"
+
     webdriver.close()
 
 
