@@ -1,0 +1,10 @@
+# conf/ default 
+defaults:
+  - webdriver: default 
+  - proxy: default 
+  - _self_ 
+
+# Global package setting 
+package:
+  name: "webdriver_default" 
+  version: "0.1.0"

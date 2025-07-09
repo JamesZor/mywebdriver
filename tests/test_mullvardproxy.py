@@ -2,6 +2,7 @@ import logging
 
 from omegaconf import OmegaConf
 
+import webdriver.core.factory as factory
 from webdriver import MullvadProxyManager, MyWebDriver
 from webdriver.core.options import ChromeOptionsBuilder
 
@@ -56,28 +57,18 @@ def test_check_proxy():
     # [18, 19, 20, 21]
     p_c = proxy_list[idx]
 
-    cfg = proxy_manager._load_mywebdrive_config()
-
+    cfg = factory.load_package_config(config_name="default")
+    optionbuilder = factory.get_webdrive_chrome_optionbuilder(config=cfg)
     print("config loaded")
     print(OmegaConf.to_yaml(cfg))
 
     print(f"{ p_c.get('proxy_url') = }")
 
-    print("building options")
-    options_builder: ChromeOptionsBuilder = (
-        proxy_manager._get_webdrive_chrome_optionsbuilder(config=cfg)
-    )
-
-    print("debug, option")
-    # options_builder.debug_chrome_options()
-    #
     proxy_results = proxy_manager.check_proxy(
-        options_builder=options_builder, proxy=p_c
+        optionsbuilder=optionbuilder, config=cfg, proxy=p_c
     )
     print(f"{proxy_results = }.")
-
     print(f"checked proxy\n{p_c =}.")
-
     print("=" * 10 + " End test check proxy " + "=" * 10)
 
 
@@ -89,7 +80,10 @@ def test_check_proxy_list():
     idx = len(proxy_list)
     idx = 10
 
-    proxy_manager.check_all_proxies_threaded(proxy_list[:idx], max_workers=10)
+    proxy_manager.check_all_proxies_threaded(proxy_list)
+
+    for p in proxy_list[:idx]:
+        print(p)
 
     for p in proxy_list[:idx]:
         if p.get("valid"):
@@ -145,7 +139,7 @@ if __name__ == "__main__":
     #    test_proxy_fetch()
     # test_load_save()
     #    test_basic_setup()
-    test_check_proxy()
-# test_check_proxy_list()
+    #  test_check_proxy()
+    test_check_proxy_list()
 #    test_processing()
 # test_main_process()

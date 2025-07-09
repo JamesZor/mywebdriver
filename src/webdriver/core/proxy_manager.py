@@ -46,6 +46,7 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm  # Import tqdm for progress bars
 
+import webdriver.core.factory as factory
 from webdriver.core.options import ChromeOptionsBuilder
 from webdriver.utils import is_valid_chrome_webdriver_config
 
@@ -338,7 +339,10 @@ class MullvadProxyManager:
                 )
                 logger.debug(f"Checking via {test_sofascore_url =}.")
 
-                page_data = driver.go_get_json(test_sofascore_url)
+                ip_data = driver.get_page(self.MULLVAD_CHECK_CURL)
+                proxy["mullvad_exit"] = ip_data.get("mullvad_exit_ip_hostname")
+
+                page_data = driver.get_page(test_sofascore_url)
 
                 logger.debug("-" * 25 + f"\n{page_data = }\n" + "-" * 25)
 
@@ -383,9 +387,7 @@ class MullvadProxyManager:
             proxy["error"] = str(e)
             return False
 
-    def check_all_proxies_threaded(
-        self, proxy_list: List[dict], max_workers: int = 5
-    ) -> None:
+    def check_all_proxies_threaded(self, proxy_list: List[dict]) -> None:
         """
         Check multiple proxies against the Sofascore API.
 
@@ -401,16 +403,16 @@ class MullvadProxyManager:
         num_proxies = len(proxy_list)
         num_good_proxies: int = 0
         logger.info(f"Checking {num_proxies} proxies for Sofascore compatibility.")
-        options_builder: ChromeOptionsBuilder = (
-            self._get_webdrive_chrome_optionsbuilder(
-                config=self._load_mywebdrive_config()
-            )
+        cfg: DictConfig = factory.load_package_config(config_name="default")
+
+        optionsbuilder: ChromeOptionsBuilder = (
+            factory.get_webdrive_chrome_optionbuilder(config=cfg)
         )
 
-        with ThreadPoolExecutor(max_workers=max_workers) as excutor:
+        with ThreadPoolExecutor(max_workers=self.max_workers) as excutor:
 
             futures_to_proxy: dict[Future, dict] = {
-                excutor.submit(self.check_proxy, options_builder, proxy): proxy
+                excutor.submit(self.check_proxy, optionsbuilder, cfg, proxy): proxy
                 for proxy in proxy_list
             }
 

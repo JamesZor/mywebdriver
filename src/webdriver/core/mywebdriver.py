@@ -5,7 +5,6 @@ File description
 import atexit
 import json
 import logging
-import signal
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
@@ -54,8 +53,10 @@ def retry(func):
                     return None  # Return None instead of crashing
                 else:
                     logger.warning(
-                        f"{func.__name__} attempt {attempt + 1} failed: {e}. Retrying in {delay}s..."
+                        f"{func.__name__} attempt {attempt + 1}. Retrying in {delay}s..."
                     )
+                    logger.debug(f"{func.__name__} {str(e)}.")
+
                     time.sleep(delay)
 
         return None
@@ -86,8 +87,6 @@ class MyWebDriver:
         logger.debug("++++ WebDriver starting. ++++")
         # Register cleanup handlers for emergency exits
         atexit.register(self._emergency_cleanup)
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
 
         self.config: DictConfig = config
         self.options: Optional[ChromeOptionsBuilder] = optionsbuilder

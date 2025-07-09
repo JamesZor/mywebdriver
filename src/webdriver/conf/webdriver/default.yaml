@@ -1,0 +1,36 @@
+browser:
+  _target_: selenium.webdriver.Chrome
+  service:
+    _target_: selenium.webdriver.chrome.service.Service
+    executable_path: "/usr/bin/chromedriver"
+  options:
+    _target_: webdriver.core.options.ChromeOptionsBuilder
+    binary_location: "/usr/bin/chromium"
+    arguments:
+      # Headless mode (uncomment if needed)
+      # - "--headless"
+      
+      # User agent (uncomment and modify if needed) 
+      # - "--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+      
+      # All your Chrome arguments
+      - "--no-sandbox"
+      - "--disable-dev-shm-usage" 
+      - "--disable-gpu"
+      - "--disable-extensions"
+      - "--blink-settings=imagesEnabled=false"
+      - "--disable-javascript"
+    preferences:
+      disable_images: false
+      disable_javascript: false
+
+# Increased page_load timeout to help with bottleneck
+timeouts:
+  implicit: 3
+  page_load: 15  # Increased from 10 to 30 seconds
+  element_wait: 3
+
+retry_attempts: 3 
+retry_delay: 2.0
+
+

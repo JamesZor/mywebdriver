@@ -23,7 +23,7 @@ def basic_proxy_fetch():
 @pytest.fixture
 def basic_webdriver_setup():
     """Fixture to get basic cfg adn optionsbuilder"""
-    cfg = factory.load_package_config(config_name="test_config")
+    cfg = factory.load_package_config(config_name="default")
     optionsbuilder = factory.get_webdrive_chrome_optionbuilder(config=cfg)
     return cfg, optionsbuilder
 
@@ -66,8 +66,19 @@ def test_check_proxy(basic_proxy_fetch, basic_webdriver_setup):
     idx: int = 20
     p: dict = proxy_list[idx]
     logger.debug(OmegaConf.to_yaml(cfg))
-    proxy_results = pm.check_proxy(optionsbuilder=optionsbuilder, config=cfg, proxy=p)
-    logger.debug(f"{proxy_results = }")
+    result = pm.check_proxy(optionsbuilder=optionsbuilder, config=cfg, proxy=p)
+    # Test return type
+    assert isinstance(result, bool), f"Expected bool, got {type(result)}"
+    logger.debug(f"check_proxy returned: {result} (type: {type(result)})")
 
 
-def test_check_proxy_list(basic_proxy_fetch, basic_webdriver_setup): 
+def test_check_proxy_list(basic_proxy_fetch, basic_webdriver_setup):
+    pm, proxy_list = basic_proxy_fetch
+    cfg, optionsbuilder = basic_webdriver_setup
+
+    pm.check_all_proxies_threaded(proxy_list=proxy_list)
+
+    idx = 10
+    for p in proxy_list[:idx]:
+        if p.get("valid"):
+            logger.info(p.get("country"), p.get("hostname"))
