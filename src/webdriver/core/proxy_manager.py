@@ -303,7 +303,10 @@ class MullvadProxyManager:
 
     # Check proxy
     def check_proxy(
-        self, options_builder: ChromeOptionsBuilder, proxy: Dict[str, Union[str, bool]]
+        self,
+        optionsbuilder: ChromeOptionsBuilder,
+        config: DictConfig,
+        proxy: Dict[str, Union[str, bool]],
     ) -> bool:
         """
         Check if a proxy works with the Sofascore API.
@@ -324,9 +327,10 @@ class MullvadProxyManager:
         )
 
         try:
-            webdriver_options = options_builder.add_proxy_and_build(proxy)
 
-            driver: MyWebDriver = MyWebDriver(options=webdriver_options)
+            driver: MyWebDriver = MyWebDriver(
+                optionsbuilder=optionsbuilder, config=config, proxy=proxy
+            )
 
             try:
                 test_sofascore_url: str = self.SOFA_EMPTY_TOUR.format(
