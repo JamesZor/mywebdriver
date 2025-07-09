@@ -135,11 +135,22 @@ def test_main_process():
     print("=" * 10 + " Ended of main process testing " + "=" * 10)
 
 
+def test_main_process_from_disk():
+    print("=" * 10 + " Running main process testing " + "=" * 10)
+    pm = MullvadProxyManager(max_workers=10)
+    fresh_proxies = pm.get_proxy_list()
+    #    fresh_proxies = pm.get_proxy_list()
+
+    print(fresh_proxies[0:5])
+    print("=" * 10 + " Ended of main process testing " + "=" * 10)
+
+
 if __name__ == "__main__":
     #    test_proxy_fetch()
     # test_load_save()
     #    test_basic_setup()
     #  test_check_proxy()
-    test_check_proxy_list()
-#    test_processing()
-# test_main_process()
+    #  test_check_proxy_list()
+    #    test_processing()
+    # test_main_process()
+    test_main_process_from_disk()

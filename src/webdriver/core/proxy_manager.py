@@ -238,53 +238,6 @@ class MullvadProxyManager:
             logger.error(f"Error fetching proxy list: {str(e)}")
             return []
 
-    def _socks_override(self, socks5_dict: dict[str, Union[str, bool]]) -> List[str]:
-        return [f"+socks5.{key}={value}" for key, value in socks5_dict.items()]
-
-    def _load_mywebdrive_config(
-        self, config_name: str = "proxy_init_run", overrides: Optional[list] = None
-    ) -> DictConfig:
-        """
-        Load and return the composed config without creating WebDriver.
-        Useful for testing config composition.
-        """
-        config_path: str = pkg_resources.resource_filename("webdriver", "conf")
-        # Clear any existing Hydra instance
-        GlobalHydra.instance().clear()
-
-        try:
-            # Initialize Hydra with the package config directory
-            with initialize_config_dir(config_dir=config_path, version_base=None):
-                cfg: DictConfig = compose(
-                    config_name=config_name, overrides=overrides or []
-                )
-            return cfg
-        finally:
-            # Clean up
-            GlobalHydra.instance().clear()
-
-    def _get_webdrive_chrome_optionsbuilder(
-        self, config: DictConfig
-    ) -> ChromeOptionsBuilder:
-        """
-        sets up a chromeoptions class with the stated config.
-        ? Creates a copy thus it can be changed by the threading process.
-
-        Returns:
-            ChromeOptionsBuilder. set up as state in conf/
-        """
-
-        if config:
-            if is_valid_chrome_webdriver_config(config):
-                options_builder: ChromeOptionsBuilder = instantiate(
-                    config.webdriver.browser.options
-                )
-
-                return options_builder
-        else:
-            logger.error("Error getting the chrome options options_builder.")
-            raise ValueError
-
     def check_wg_mullvad_connection(self) -> bool:
         """
         method to check computer is connected via wireguard and to mullvad vpn service.
@@ -395,7 +348,6 @@ class MullvadProxyManager:
 
         Args:
             proxy_list: List of proxy dictionaries to check
-            max_workers: Int
 
         Returns:
             None: references  change / in place.
@@ -586,9 +538,7 @@ class MullvadProxyManager:
         # Step 2: Test proxies (unless skipped)
         if not skip_testing:
             logger.info("Testing proxies for Sofascore compatibility...")
-            self.check_all_proxies_threaded(
-                proxy_list=proxy_list, max_workers=self.max_workers
-            )
+            self.check_all_proxies_threaded(proxy_list=proxy_list)
 
             # Count valid proxies
             valid_proxies = [p for p in proxy_list if p.get("valid", False)]

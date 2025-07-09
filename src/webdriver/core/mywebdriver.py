@@ -52,7 +52,7 @@ def retry(func):
                     )
                     return None  # Return None instead of crashing
                 else:
-                    logger.warning(
+                    logger.debug(
                         f"{func.__name__} attempt {attempt + 1}. Retrying in {delay}s..."
                     )
                     logger.debug(f"{func.__name__} {str(e)}.")
@@ -238,7 +238,9 @@ class MyWebDriver:
             return json.loads(json_content)
 
         except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse JSON content at {self.current_url}: {e}")
+            logger.warning(
+                f"Failed to parse JSON content at {self.current_url}, with hostname proxy {self.set_proxy.get('hostname')}:\n {json_content = }\n {e}"
+            )
             return None
         except Exception as e:
             logger.error(f"Error getting JSON content at {self.current_url}: {e}")
