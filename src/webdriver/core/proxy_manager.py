@@ -38,19 +38,13 @@ from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import pkg_resources
 import requests
-from hydra import compose, initialize_config_dir
-from hydra.core.global_hydra import GlobalHydra
-from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from tqdm import tqdm  # Import tqdm for progress bars
 
 import webdriver.core.factory as factory
+from webdriver.core.mywebdriver import MyWebDriver
 from webdriver.core.options import ChromeOptionsBuilder
-from webdriver.utils import is_valid_chrome_webdriver_config
-
-from .mywebdriver import MyWebDriver
 
 logger = logging.getLogger(__name__)
 
@@ -340,7 +334,12 @@ class MullvadProxyManager:
             proxy["error"] = str(e)
             return False
 
-    def check_all_proxies_threaded(self, proxy_list: List[dict]) -> None:
+    def check_all_proxies_threaded(
+        self,
+        proxy_list: List[dict],
+        cfg: Optional[DictConfig] = None,
+        optionsbuilder: Optional[ChromeOptionsBuilder] = None,
+    ) -> None:
         """
         Check multiple proxies against the Sofascore API.
 
@@ -355,11 +354,14 @@ class MullvadProxyManager:
         num_proxies = len(proxy_list)
         num_good_proxies: int = 0
         logger.info(f"Checking {num_proxies} proxies for Sofascore compatibility.")
-        cfg: DictConfig = factory.load_package_config(config_name="default")
 
-        optionsbuilder: ChromeOptionsBuilder = (
-            factory.get_webdrive_chrome_optionbuilder(config=cfg)
-        )
+        if cfg is None:
+            cfg: DictConfig = factory.load_package_config(config_name="default")
+
+        if optionsbuilder is None:
+            optionsbuilder: ChromeOptionsBuilder = (
+                factory.get_webdrive_chrome_optionbuilder(config=cfg)
+            )
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as excutor:
 
@@ -581,8 +583,3 @@ class MullvadProxyManager:
         # Step 2: Cache is stale or force refresh - fetch and process new data
         logger.info("Cache stale or force refresh - fetching new proxy data")
         return self.fetch_and_process_proxies()  # This does the heavy lifting
-
-    ### TODO
-
-    # save proxy list
-    # load proxy list

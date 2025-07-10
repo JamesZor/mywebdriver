@@ -5,6 +5,8 @@ File description
 import atexit
 import json
 import logging
+import time
+from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
@@ -12,6 +14,7 @@ from numpy.random import Generator as RandomGenrator
 from omegaconf import DictConfig
 from selenium import webdriver
 from selenium.common.exceptions import (
+    TimeoutException,
     WebDriverException,
 )
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -21,16 +24,6 @@ from webdriver.core.options import ChromeOptionsBuilder
 
 # Set up logging
 logger = logging.getLogger(__name__)
-
-# TODO
-# proxy logic setup
-
-# rotations logic
-
-import time
-from functools import wraps
-
-from selenium.common.exceptions import TimeoutException, WebDriverException
 
 
 def retry(func):
@@ -101,11 +94,14 @@ class MyWebDriver:
 
         self.rotation_counter: Optional[int] = None
 
+        # page wait
+        self.wait_loc: float = self.config.webdriver.pagewait[0]
+        self.wait_std: float = self.config.webdriver.pagewait[1]
+
         # proxy logic
         if self.config.proxy.enabled:
             logger.debug(" Socks5 proxy enabled.")
             logger.debug(f" {proxy =}")
-
             logger.debug(f" {proxy_list =}")
 
             # if given a single proxy, use this, ignore list.
@@ -121,9 +117,7 @@ class MyWebDriver:
                 # rotation:
                 if self.config.proxy.rotation.enabled:
                     logger.debug(" Proxy socks5 rotation enabled")
-
                     self._set_proxy_rotation_counter()
-
                     self.get_page = self.go_get_json_rotation
 
         if optionsbuilder is not None:
@@ -186,6 +180,8 @@ class MyWebDriver:
         """Navigate to URL."""
         logger.debug(f"[{self.session_id}] Navigating to: {url}")
         self.driver.get(url)
+        wait_time = self.rng.normal(loc=self.wait_loc, scale=self.wait_std)
+        time.sleep(float(wait_time))
 
     def _print_config(self):
         """Print the current configuration for debugging."""

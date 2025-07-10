@@ -7,6 +7,7 @@ Provides WebDriver instances with proxy rotation and configuration management.
 """
 
 from .core.factory import create_webdriver_with_hydra, load_package_config
+from .core.manager_webdriver import ManagerWebdriver
 from .core.mywebdriver import MyWebDriver
 from .core.proxy_manager import MullvadProxyManager
 
@@ -16,4 +17,5 @@ __all__ = [
     "create_webdriver_with_hydra",
     "load_package_config",
     "MullvadProxyManager",
+    "ManagerWebdriver",
 ]
