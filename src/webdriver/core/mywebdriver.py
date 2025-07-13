@@ -179,8 +179,13 @@ class MyWebDriver:
     def navigate(self, url: str) -> None:
         """Navigate to URL."""
         logger.debug(f"[{self.session_id}] Navigating to: {url}")
-        self.driver.get(url)
-        wait_time = self.rng.normal(loc=self.wait_loc, scale=self.wait_std)
+
+        if self.driver is not None:
+            self.driver.get(url)
+
+        wait_time = -1.0
+        while wait_time <= 0:
+            wait_time = self.rng.normal(loc=self.wait_loc, scale=self.wait_std)
         time.sleep(float(wait_time))
 
     def _print_config(self):
