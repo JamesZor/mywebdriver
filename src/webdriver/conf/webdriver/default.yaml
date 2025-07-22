@@ -31,7 +31,7 @@ timeouts:
   element_wait: 3
 
 pagewait_enabled: true # normal (Gaussian) distribution. # TODO: set up options for this
-pagewait: [2, 1]
+pagewait: [0.2, 0.05]
 
 retry_attempts: 3 
 retry_delay: 2.0

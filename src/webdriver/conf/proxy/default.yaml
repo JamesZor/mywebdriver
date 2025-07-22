@@ -7,5 +7,5 @@ rotation: # setting for rotation, the number of hops before changing the sock5 a
   random_type: "fixed"  # type of interval, 
   # choice "fixed" - single number, "uniform" - random int between interval. 
   #
-  interval: [3,3] # if fixed we use first number, if uniform becomes the interval
+  interval: [1,3] # if fixed we use first number, if uniform becomes the interval
 
