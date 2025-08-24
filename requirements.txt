@@ -1,0 +1,20 @@
+pydantic
+omegaconf
+hydra-core
+pandas
+tqdm
+selenium
+requests
+numpy
+
+
+# (base) ⚡➜ ~ which chromium  
+# /usr/bin/chromium
+# (base) ⚡➜ ~ which chromiumdriver
+# chromiumdriver not found
+# (base) ⚡➜ ~ chromium --version
+# Chromium 138.0.7204.49 Arch Linux
+# (base) ⚡➜ ~ chromedriver --version
+# ChromeDriver 138.0.7204.49 (d2b48fd5f7813ed477a2d68fa232b8178fa4fb1e-refs/branch-heads/7204@{#1814})
+# (base) ⚡➜ ~ which chromedriver  
+# /usr/bin/chromedriver
