@@ -41,7 +41,7 @@ def retry(func):
             except (TimeoutException, WebDriverException) as e:
                 if attempt == max_attempts - 1:  # Last attempt
                     logger.error(
-                        f"{func.__name__} failed after {max_attempts} attempts: {e}"
+                        f"{func.__name__} failed after {max_attempts} attempts."
                     )
                     return None  # Return None instead of crashing
                 else:
@@ -239,10 +239,16 @@ class MyWebDriver:
             return json.loads(json_content)
 
         except json.JSONDecodeError as e:
-            logger.warning(
-                f"Failed to parse JSON content at {self.current_url}, with hostname proxy {self.set_proxy.get('hostname')}:\n {json_content = }\n {e}"
-            )
+            # Check if it's a standard Chrome error page
+            if "ERR_" in json_content or "can’t be reached" in json_content:
+                logger.debug(f"Proxy blocked/dead at {self.current_url}")
+            else:
+                # Still log actual weird JSON errors, but as DEBUG so it doesn't spam the console
+                logger.debug(
+                    f"Failed to parse JSON content at {self.current_url} with proxy {self.set_proxy.get('hostname')}."
+                )
             return None
+
         except Exception as e:
             logger.error(f"Error getting JSON content at {self.current_url}: {e}")
             return None

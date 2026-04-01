@@ -10,7 +10,7 @@ def test_manager_webdriver():
 
     d1 = mw.spawn_webdriver()
     test_url: str = "https://am.i.mullvad.net/json"
-    test_url = "https://api.sofascore.com/api/v1/tournament/1"
+    test_url = "https://api.sofascore.com/api/v1/tournament/29"
 
     page_data = d1.get_page(test_url)
 
