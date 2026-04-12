@@ -29,6 +29,7 @@ class ManagerWebdriver:
         """
         setup and run the proxy manager.
         """
+        self._display_x11_fix()
         self.proxy_manager: MullvadProxyManager = MullvadProxyManager(
             max_workers=proxy_max_workers
         )
@@ -63,17 +64,17 @@ class ManagerWebdriver:
 
         self.webdrive_list: list[MyWebDriver] = []
 
-    # def _display_x11_fix() -> None:
-    #     """
-    #     PERMANENT X11 DISPLAY FIX
-    #     """
-    #     if "DISPLAY" not in os.environ:
-    #         logger.warning(
-    #             "No DISPLAY variable found. Forcing DISPLAY=:0 for headful Chrome."
-    #         )
-    #         os.environ["DISPLAY"] = ":0"
-    #     # --
-    #
+    def _display_x11_fix() -> None:
+        """
+        PERMANENT X11 DISPLAY FIX
+        """
+        if "DISPLAY" not in os.environ:
+            logger.warning(
+                "No DISPLAY variable found. Forcing DISPLAY=:0 for headful Chrome."
+            )
+            os.environ["DISPLAY"] = ":0"
+        # --
+
     def spawn_webdriver(self) -> MyWebDriver:
         """create a webdriver on the config in __init__"""
         driver: MyWebDriver = MyWebDriver(
