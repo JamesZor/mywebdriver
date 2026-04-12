@@ -64,7 +64,7 @@ class ManagerWebdriver:
 
         self.webdrive_list: list[MyWebDriver] = []
 
-    def _display_x11_fix() -> None:
+    def _display_x11_fix(self) -> None:
         """
         PERMANENT X11 DISPLAY FIX
         """
